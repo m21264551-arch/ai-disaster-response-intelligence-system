@@ -1,0 +1,33 @@
+{
+  "feature_columns": [
+    "horizon_hours",
+    "recent_hotspot_count",
+    "recent_unique_cells",
+    "recent_max_intensity",
+    "recent_mean_confidence",
+    "hours_since_last_hotspot",
+    "nearest_fire_km",
+    "wind_alignment",
+    "neighbor_recent_count",
+    "baseline_score",
+    "population",
+    "hospitals",
+    "schools",
+    "major_roads",
+    "infrastructure_weight",
+    "max_temp_c",
+    "min_temp_c",
+    "rainfall_mm",
+    "max_relative_humidity_pct",
+    "min_relative_humidity_pct",
+    "avg_10m_wind_speed_kmh",
+    "solar_radiation_mj_m2",
+    "weather_station_distance_km",
+    "weather_observation_age_days",
+    "month_sin",
+    "month_cos",
+    "hour_sin",
+    "hour_cos"
+  ],
+  "label": "future hotspot in horizon"
+}

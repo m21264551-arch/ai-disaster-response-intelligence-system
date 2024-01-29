@@ -1,0 +1,37 @@
+services:
+  postgis:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: disaster_intel
+      POSTGRES_USER: disaster
+      POSTGRES_PASSWORD: disaster
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+      - ./backend/app/db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DISASTER_INTEL_MODE: demo
+      DATABASE_URL: postgresql://disaster:disaster@postgis:5432/disaster_intel
+    depends_on:
+      - postgis
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+
+volumes:
+  postgis_data:
+

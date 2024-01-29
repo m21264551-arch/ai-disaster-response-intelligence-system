@@ -1,0 +1,82 @@
+{
+  "model_run_id": "heldout-nsw-bushfire-v1",
+  "generated_at": "2026-06-14T13:45:57.030870+00:00",
+  "dataset_name": "NSW DEA held-out hotspots, Jan 10-16 2020",
+  "evaluation_window": {
+    "dataset": "DEA Hotspots WFS NSW held-out event window",
+    "source_rows": 25800,
+    "scored_rows": 5697,
+    "hotspot_start": "2020-01-10T00:10:00+00:00",
+    "hotspot_end": "2020-01-15T22:40:00+00:00",
+    "lookback_hours": 36,
+    "step_hours": 12,
+    "candidate_ring": 3,
+    "trained_model_version": "hist-gradient-bushfire-risk-v1",
+    "trained_at": "2026-06-14T13:43:58.570610+00:00"
+  },
+  "evaluation_rows": 5697,
+  "positive_rate": 0.1425,
+  "metrics": [
+    {
+      "name": "PR-AUC",
+      "model_value": 0.5017,
+      "baseline_value": 0.3453,
+      "unit": "score",
+      "interpretation": "Precision-recall performance on imbalanced future-hotspot labels."
+    },
+    {
+      "name": "Recall@Top-10%",
+      "model_value": 0.3879,
+      "baseline_value": 0.3005,
+      "unit": "score",
+      "interpretation": "Fraction of future hotspot cells caught in the highest-risk decile."
+    },
+    {
+      "name": "Brier Score",
+      "model_value": 0.1163,
+      "baseline_value": 0.4044,
+      "unit": "loss",
+      "interpretation": "Lower is better; measures probabilistic calibration."
+    },
+    {
+      "name": "PR Curve Points",
+      "model_value": 5333,
+      "baseline_value": 5333,
+      "unit": "points",
+      "interpretation": "Number of threshold points available for deeper model review."
+    }
+  ],
+  "confusion_summary": {
+    "true_positive_top_decile": 315,
+    "false_positive_top_decile": 254,
+    "missed_future_hotspots": 497,
+    "true_negative_cells": 4631
+  },
+  "calibration_bins": [
+    {
+      "bin": 0.0141,
+      "predicted": 0.0141,
+      "observed": 0.1201
+    },
+    {
+      "bin": 0.2678,
+      "predicted": 0.2678,
+      "observed": 0.5963
+    },
+    {
+      "bin": 0.4884,
+      "predicted": 0.4884,
+      "observed": 0.7941
+    },
+    {
+      "bin": 0.697,
+      "predicted": 0.697,
+      "observed": 0.8333
+    },
+    {
+      "bin": 0.9808,
+      "predicted": 0.9808,
+      "observed": 0.92
+    }
+  ]
+}
