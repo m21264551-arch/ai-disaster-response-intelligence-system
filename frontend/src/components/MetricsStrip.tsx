@@ -6,6 +6,8 @@ interface MetricsStripProps {
 }
 
 export function MetricsStrip({ metrics }: MetricsStripProps) {
+  const visibleMetrics = (metrics?.metrics ?? []).filter((metric) => metric.name !== "PR Curve Points");
+
   return (
     <section className="metrics-panel">
       <div className="metrics-heading">
@@ -13,7 +15,7 @@ export function MetricsStrip({ metrics }: MetricsStripProps) {
         <span>Model Evaluation</span>
       </div>
       <div className="metric-grid">
-        {(metrics?.metrics ?? []).map((metric) => (
+        {visibleMetrics.map((metric) => (
           <article className="metric-card" key={metric.name}>
             <span>{metric.name}</span>
             <strong>
@@ -27,4 +29,3 @@ export function MetricsStrip({ metrics }: MetricsStripProps) {
     </section>
   );
 }
-

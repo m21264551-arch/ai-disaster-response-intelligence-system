@@ -18,8 +18,8 @@ def replay_event() -> ReplayEvent:
         end_time=REPLAY_END,
         region_bbox=NSW_BBOX,
         description=(
-            "A deterministic South Coast NSW replay inspired by Black Summer bushfire spread patterns. "
-            "It is designed for model evaluation and demo reproducibility, not operational truth."
+            "Historical South Coast NSW replay window. Features are cut off at the selected time; "
+            "future hotspots remain hidden until reveal mode."
         ),
     )
 
@@ -104,4 +104,3 @@ def replay_hotspots() -> list[Hotspot]:
             )
         )
     return hotspots
-

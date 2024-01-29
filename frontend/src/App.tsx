@@ -16,12 +16,14 @@ import type {
 } from "./lib/types";
 import { AllocationPanel } from "./components/AllocationPanel";
 import { AppSidebar } from "./components/AppSidebar";
+import { EvidenceStrip } from "./components/EvidenceStrip";
 import { HeldoutPanel } from "./components/HeldoutPanel";
 import { HorizonControl } from "./components/HorizonControl";
 import { IncidentPanel } from "./components/IncidentPanel";
 import { MetricsStrip } from "./components/MetricsStrip";
 import { ReplayTimeline } from "./components/ReplayTimeline";
 import { TopBar } from "./components/TopBar";
+import { timeLabel } from "./lib/format";
 
 const MapPanel = lazy(() => import("./components/MapPanel").then((module) => ({ default: module.MapPanel })));
 
@@ -155,11 +157,13 @@ export default function App() {
               <RadioTower size={18} />
               AI Disaster-Response Intelligence
             </div>
-            <h1>NSW Bushfire Replay</h1>
-            <p>Forecast risk, expose vulnerable infrastructure, and allocate crews before the future hotspots are revealed.</p>
+            <h1>NSW Bushfire Operations Console</h1>
+            <p>{timeLabel(replayTime)} prediction cut-off · {horizon}h forecast · future hotspots withheld</p>
           </div>
           <HorizonControl horizon={horizon} horizons={HORIZONS} onChange={setHorizon} />
         </section>
+
+        <EvidenceStrip metrics={metrics} heldout={heldout} prediction={prediction} horizon={horizon} />
 
         {status === "error" ? (
           <div className="error-state" role="alert">
@@ -230,7 +234,7 @@ export default function App() {
 
         <footer className="disclaimer">
           <Flame size={16} />
-          Not an official emergency tool. Portfolio simulation using public-data-style replay fixtures.
+          Not an official emergency tool. Portfolio simulation using public replay data and derived model artifacts.
           <span>
             <BarChart3 size={16} />
             {prediction ? `${prediction.model_version} vs ${prediction.baseline_version}` : "Model benchmark pending"}

@@ -7,6 +7,7 @@
   --bg: #08100f;
   --surface: #0f1b1a;
   --surface-strong: #142422;
+  --surface-raised: rgba(17, 28, 27, 0.94);
   --surface-soft: rgba(255, 255, 255, 0.055);
   --border: rgba(226, 255, 248, 0.13);
   --border-strong: rgba(226, 255, 248, 0.24);
@@ -18,7 +19,7 @@
   --orange: #ee7a34;
   --red: #ff4d32;
   --amber: #d6aa45;
-  --shadow: 0 22px 70px rgba(0, 0, 0, 0.35);
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
 }
 
 * {
@@ -30,13 +31,17 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;
-  background:
-    radial-gradient(circle at 62% 24%, rgba(238, 122, 52, 0.14), transparent 28rem),
-    linear-gradient(135deg, #07100f 0%, #0b1514 42%, #151513 100%);
+  background: linear-gradient(135deg, #07100f 0%, #0b1514 48%, #101412 100%);
+  font-variant-numeric: tabular-nums;
 }
 
 button {
   font: inherit;
+}
+
+button:focus-visible {
+  outline: 2px solid rgba(47, 228, 204, 0.78);
+  outline-offset: 2px;
 }
 
 .app-shell {
@@ -111,13 +116,13 @@ button {
   min-width: 0;
   min-height: 100vh;
   flex-direction: column;
-  gap: 16px;
-  padding: 18px;
+  gap: 12px;
+  padding: 16px;
 }
 
 .top-bar {
   display: flex;
-  min-height: 52px;
+  min-height: 44px;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -190,32 +195,88 @@ button {
 .command-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 20px;
-  align-items: end;
-  padding: 8px 4px 2px;
+  gap: 16px;
+  align-items: center;
+  padding: 2px 4px;
 }
 
 .system-mark {
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 700;
 }
 
 .command-copy h1 {
   margin: 0;
   color: var(--text);
-  font-size: clamp(2rem, 4vw, 4.1rem);
-  line-height: 0.96;
+  font-size: clamp(1.45rem, 2.1vw, 2rem);
+  line-height: 1.08;
   letter-spacing: 0;
 }
 
 .command-copy p {
-  max-width: 760px;
-  margin: 12px 0 0;
+  margin: 6px 0 0;
   color: var(--muted);
-  font-size: 1rem;
-  line-height: 1.55;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.evidence-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.evidence-item {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(13, 24, 23, 0.78);
+}
+
+.evidence-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(47, 228, 204, 0.22);
+  border-radius: 8px;
+  color: var(--teal);
+  background: rgba(47, 228, 204, 0.08);
+}
+
+.evidence-item span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.evidence-item strong {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.98rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evidence-item p {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--faint);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .horizon-control {
@@ -256,7 +317,7 @@ button {
 
 .map-region {
   position: relative;
-  min-height: 550px;
+  min-height: 520px;
 }
 
 .loading-overlay {
@@ -293,7 +354,7 @@ button {
 .error-state {
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(15, 27, 26, 0.82);
+  background: var(--surface-raised);
   box-shadow: var(--shadow);
 }
 
@@ -301,7 +362,7 @@ button {
   position: relative;
   display: flex;
   height: 100%;
-  min-height: 550px;
+  min-height: 520px;
   overflow: hidden;
   flex-direction: column;
 }
@@ -796,7 +857,7 @@ meter::-webkit-meter-optimum-value {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -1019,6 +1080,10 @@ meter::-webkit-meter-optimum-value {
     grid-template-columns: 1fr;
   }
 
+  .evidence-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .right-rail {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1094,6 +1159,10 @@ meter::-webkit-meter-optimum-value {
     width: 100%;
   }
 
+  .evidence-strip {
+    grid-template-columns: 1fr;
+  }
+
   .horizon {
     flex: 1;
   }
@@ -1105,7 +1174,7 @@ meter::-webkit-meter-optimum-value {
 
   .map-region,
   .map-panel {
-    min-height: 520px;
+    min-height: 470px;
   }
 
   .map-toolbar {
