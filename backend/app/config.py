@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "AI Disaster-Response Intelligence System"
     mode: str = "demo"
-    database_url: str = "postgresql://disaster:disaster@localhost:5432/disaster_intel"
+    database_url: str = "postgresql://disaster:local-demo-password@localhost:5432/disaster_intel"
     firms_map_key: str | None = None
     nsw_rfs_incidents_url: str = "https://www.rfs.nsw.gov.au/feeds/majorIncidents.json"
 

@@ -12,6 +12,7 @@ Use this before making the GitHub repository public.
 - [x] Operational safety disclaimer appears in the README, dashboard, and model card.
 - [x] Project code has a root `LICENSE`.
 - [x] `make check` passes.
+- [x] `make audit` passes.
 
 ## Manual Checks Before Publishing
 
@@ -23,6 +24,7 @@ rg -n --hidden --glob '!frontend/node_modules/**' --glob '!frontend/dist/**' --g
   "(api[_-]?key|secret|token|password|authorization|bearer|private[_-]?key|BEGIN (RSA|OPENSSH|PRIVATE)|AKIA|AIza|\\bsk-[A-Za-z0-9])" .
 find . -path './.git' -prune -o -path './.venv' -prune -o -path './frontend/node_modules' -prune -o -path './frontend/dist' -prune -o -type f -size +10M -print
 make check
+make audit
 ```
 
 Expected:
@@ -30,6 +32,7 @@ Expected:
 - Secret scan should only show placeholders or false positives such as package names.
 - Large-file check should print nothing.
 - `make check` should pass backend tests and frontend build.
+- `make audit` should report no dependency advisories, no Bandit findings, no broken Python requirements, and no npm production vulnerabilities.
 
 ## Keep Private
 

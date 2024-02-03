@@ -6,6 +6,7 @@ import tempfile
 import zipfile
 from collections import defaultdict
 from pathlib import Path
+from urllib.parse import urlparse
 from urllib.request import urlopen
 
 import h3
@@ -19,6 +20,8 @@ from app.services.geo import centroid_from_h3
 ABS_POPULATION_GEOTIFF_URL = (
     "https://www.abs.gov.au/statistics/people/population/regional-population/2024-25/GEOTIFF.zip"
 )
+ABS_DOWNLOAD_HOST = "www.abs.gov.au"
+ABS_DOWNLOAD_PATH_PREFIX = "/statistics/people/population/regional-population/"
 
 
 def main() -> None:
@@ -52,8 +55,21 @@ def main() -> None:
 
 
 def download_file(url: str, path: Path) -> None:
-    with urlopen(url, timeout=120) as response:
+    validated_url = validate_abs_download_url(url)
+    with urlopen(validated_url, timeout=120) as response:  # nosec B310
         path.write_bytes(response.read())
+
+
+def validate_abs_download_url(url: str) -> str:
+    parsed = urlparse(url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != ABS_DOWNLOAD_HOST
+        or not parsed.path.startswith(ABS_DOWNLOAD_PATH_PREFIX)
+        or not parsed.path.lower().endswith(".zip")
+    ):
+        raise ValueError("ABS population grid URL must be an HTTPS zip download from www.abs.gov.au")
+    return url
 
 
 def extract_geotiff(zip_path: Path, output_dir: Path) -> Path:
@@ -61,8 +77,12 @@ def extract_geotiff(zip_path: Path, output_dir: Path) -> Path:
         names = [name for name in archive.namelist() if name.lower().endswith((".tif", ".tiff"))]
         if not names:
             raise ValueError("ABS population grid zip did not contain a GeoTIFF")
-        archive.extract(names[0], output_dir)
-        return output_dir / names[0]
+        member = names[0]
+        target = (output_dir / member).resolve()
+        if not target.is_relative_to(output_dir.resolve()):
+            raise ValueError("ABS population grid zip contains an unsafe GeoTIFF path")
+        archive.extract(member, output_dir)
+        return target
 
 
 def aggregate_population_grid(

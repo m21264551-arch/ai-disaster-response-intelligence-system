@@ -14,7 +14,7 @@ DASHBOARD_URL := http://$(FRONTEND_HOST):$(FRONTEND_PORT)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help bootstrap install install-optional demo backend frontend train train-xgboost train-national evaluate-heldout download-bom download-abs-population build-multiseason-corpus download-osm test build check
+.PHONY: help bootstrap install install-optional install-dev demo backend frontend train train-xgboost train-national evaluate-heldout download-bom download-abs-population build-multiseason-corpus download-osm test build audit check
 
 help:
 	@echo "AI Disaster-Response Intelligence System"
@@ -23,6 +23,7 @@ help:
 	@echo "  make demo              Start backend + frontend and open the dashboard"
 	@echo "  make install           Reinstall Python and frontend dependencies"
 	@echo "  make install-optional  Install XGBoost and OR-Tools extras"
+	@echo "  make install-dev       Install local security audit tools"
 	@echo "  make backend           Start only the FastAPI backend"
 	@echo "  make frontend          Start only the React/Vite frontend"
 	@echo "  make train             Rebuild the trained risk model artifact"
@@ -35,6 +36,7 @@ help:
 	@echo "  make download-osm      Download optional OSM exposure overlays"
 	@echo "  make test              Run backend tests"
 	@echo "  make build             Build the frontend"
+	@echo "  make audit             Run dependency and static security audits"
 	@echo "  make check             Run tests and frontend build"
 
 bootstrap:
@@ -58,6 +60,9 @@ install:
 
 install-optional: bootstrap
 	$(PIP) install -r backend/requirements-optional.txt
+
+install-dev: bootstrap
+	$(PIP) install -r backend/requirements-dev.txt
 
 demo: bootstrap
 	@echo "Starting demo at $(DASHBOARD_URL)"
@@ -157,5 +162,11 @@ test: bootstrap
 
 build: bootstrap
 	npm --prefix frontend run build
+
+audit: install-dev
+	$(PIP) check
+	$(VENV_PYTHON) -m pip_audit -r backend/requirements.txt -r backend/requirements-optional.txt -r backend/requirements-dev.txt
+	$(VENV_PYTHON) -m bandit -q -r backend/app backend/scripts -x backend/tests
+	npm --prefix frontend audit --omit=dev
 
 check: test build

@@ -3,15 +3,21 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 from datetime import date
 from io import StringIO
 from pathlib import Path
 from urllib.error import URLError
+from urllib.parse import urlparse
 from urllib.request import urlopen
 
 import pandas as pd
 
 BOM_FTP_ROOT = "ftp://ftp.bom.gov.au/anon/gen/clim_data/IDCKWCDEA0/tables"
+BOM_FTP_HOST = "ftp.bom.gov.au"
+BOM_FTP_PATH_PREFIX = "/anon/gen/clim_data/IDCKWCDEA0/tables/"
+ALLOWED_BOM_STATES = {"act", "nsw", "nt", "qld", "sa", "tas", "vic", "wa"}
+BOM_STATION_SLUG_PATTERN = re.compile(r"^[a-z0-9_-]+$")
 DEFAULT_STATIONS = (
     "nsw:nowra_ran_air_station",
     "nsw:moruya_airport",
@@ -80,7 +86,11 @@ def parse_station_specs(specs: list[str]) -> list[tuple[str, str]]:
             state, station_slug = spec.split(":", 1)
         else:
             state, station_slug = "nsw", spec
-        parsed.append((state.lower(), station_slug.strip("/").lower()))
+        state = state.lower()
+        station_slug = station_slug.strip("/").lower()
+        if state not in ALLOWED_BOM_STATES or not BOM_STATION_SLUG_PATTERN.fullmatch(station_slug):
+            raise ValueError(f"Invalid BoM station spec: {spec}")
+        parsed.append((state, station_slug))
     return parsed
 
 
@@ -93,8 +103,16 @@ def month_range(start_month: str, end_month: str) -> list[str]:
 
 
 def download_text(url: str) -> str:
-    with urlopen(url, timeout=60) as response:
+    validated_url = validate_bom_download_url(url)
+    with urlopen(validated_url, timeout=60) as response:  # nosec B310
         return response.read().decode("latin-1", errors="replace")
+
+
+def validate_bom_download_url(url: str) -> str:
+    parsed = urlparse(url)
+    if parsed.scheme != "ftp" or parsed.hostname != BOM_FTP_HOST or not parsed.path.startswith(BOM_FTP_PATH_PREFIX):
+        raise ValueError("BoM weather URL must point to the expected public BoM FTP table directory")
+    return url
 
 
 def download_station_metadata() -> dict[str, dict[str, object]]:
