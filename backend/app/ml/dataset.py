@@ -109,9 +109,8 @@ def build_training_frame(
                 if prediction_time < hotspot.observed_at <= prediction_time + timedelta(hours=horizon)
             ]
             future_cells = {cell_from_lat_lon(hotspot.lat, hotspot.lon, resolution=5) for hotspot in future}
-            horizon_candidates = candidate_cells | future_cells
 
-            for cell_id in horizon_candidates:
+            for cell_id in candidate_cells:
                 exposure = estimate_exposure(cell_id)
                 features = cell_feature_row(
                     cell_id=cell_id,
@@ -157,4 +156,3 @@ def _normalize_confidence(value: object) -> float:
             return 0.9
     numeric = float(value)
     return numeric / 100 if numeric > 1 else numeric
-

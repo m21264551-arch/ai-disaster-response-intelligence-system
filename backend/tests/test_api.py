@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.live_feeds import parse_nsw_rfs_incidents
 
 
 client = TestClient(app)
@@ -34,6 +35,36 @@ def test_predict_rejects_invalid_bbox():
             "bbox": [153.8, -37.4, 148.7, -31.1],
             "start_time": datetime(2020, 1, 5, tzinfo=UTC).isoformat(),
             "horizons": [24],
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_predict_rejects_duplicate_or_excessive_horizons():
+    body = {
+        "bbox": [148.7, -37.4, 153.8, -31.1],
+        "start_time": datetime(2020, 1, 5, tzinfo=UTC).isoformat(),
+        "horizons": [24, 24],
+    }
+
+    duplicate_response = client.post("/predict", json=body)
+    assert duplicate_response.status_code == 422
+
+    excessive_response = client.post("/predict", json={**body, "horizons": [24, 48, 72, 24]})
+    assert excessive_response.status_code == 422
+
+
+def test_allocate_rejects_invalid_bbox():
+    response = client.post(
+        "/allocate",
+        json={
+            "bbox": [153.8, -37.4, 148.7, -31.1],
+            "start_time": datetime(2020, 1, 5, tzinfo=UTC).isoformat(),
+            "horizon_hours": 24,
+            "crews": 1,
+            "supplies": 0,
+            "max_distance_km": 220,
         },
     )
 
@@ -115,3 +146,21 @@ def test_heldout_failure_analysis_contract():
     assert payload["cases"]["hits"]
     assert payload["cases"]["missed"]
     assert payload["cases"]["false_alarms"]
+
+
+def test_live_incident_parser_falls_back_on_malformed_feed_values():
+    incidents = parse_nsw_rfs_incidents(
+        {
+            "features": [
+                {
+                    "properties": {"title": "Malformed", "size": "not-a-number"},
+                    "geometry": {"coordinates": ["bad-lon", "bad-lat"]},
+                }
+            ]
+        }
+    )
+
+    assert incidents[0].name == "Malformed"
+    assert incidents[0].size_hectares == 0
+    assert incidents[0].lat == -33.8688
+    assert incidents[0].lon == 151.2093

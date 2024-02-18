@@ -76,7 +76,7 @@ class ReplayEvent(BaseModel):
 class PredictRequest(BaseModel):
     bbox: BBox = Field(min_length=4, max_length=4)
     start_time: datetime
-    horizons: list[Literal[24, 48, 72]] = Field(default_factory=lambda: [24, 48, 72])
+    horizons: list[Literal[24, 48, 72]] = Field(default_factory=lambda: [24, 48, 72], min_length=1, max_length=3)
 
     @field_validator("bbox")
     @classmethod
@@ -89,6 +89,14 @@ class PredictRequest(BaseModel):
         if not (-90 <= south <= 90 and -90 <= north <= 90):
             raise ValueError("bbox latitude values must be valid")
         return bbox
+
+    @field_validator("horizons")
+    @classmethod
+    def validate_horizons(cls, horizons: list[Literal[24, 48, 72]]) -> list[Literal[24, 48, 72]]:
+        unique_horizons = list(dict.fromkeys(horizons))
+        if len(unique_horizons) != len(horizons):
+            raise ValueError("horizons must not contain duplicates")
+        return unique_horizons
 
 
 class PredictResponse(BaseModel):
@@ -155,6 +163,13 @@ class AllocateRequest(BaseModel):
     crews: int = Field(ge=0, le=50)
     supplies: int = Field(ge=0, le=200)
     max_distance_km: float = Field(default=180, gt=0)
+
+    @field_validator("bbox")
+    @classmethod
+    def validate_bbox(cls, bbox: BBox | None) -> BBox | None:
+        if bbox is None:
+            return None
+        return PredictRequest.validate_bbox(bbox)
 
 
 class AllocateResponse(BaseModel):

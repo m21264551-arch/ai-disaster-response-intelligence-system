@@ -1,118 +1,118 @@
 {
   "model_run_id": "heldout-nsw-bushfire-v1",
-  "generated_at": "2026-06-14T13:45:57.030870+00:00",
+  "generated_at": "2026-06-15T12:24:14.499934+00:00",
   "metrics": {
     "model_run_id": "heldout-nsw-bushfire-v1",
-    "generated_at": "2026-06-14T13:45:57.030870+00:00",
+    "generated_at": "2026-06-15T12:24:14.499934+00:00",
     "dataset_name": "NSW DEA held-out hotspots, Jan 10-16 2020",
     "evaluation_window": {
       "dataset": "DEA Hotspots WFS NSW held-out event window",
       "source_rows": 25800,
-      "scored_rows": 5697,
+      "scored_rows": 5646,
       "hotspot_start": "2020-01-10T00:10:00+00:00",
       "hotspot_end": "2020-01-15T22:40:00+00:00",
       "lookback_hours": 36,
       "step_hours": 12,
       "candidate_ring": 3,
       "trained_model_version": "hist-gradient-bushfire-risk-v1",
-      "trained_at": "2026-06-14T13:43:58.570610+00:00"
+      "trained_at": "2026-06-15T12:20:57.030066+00:00"
     },
-    "evaluation_rows": 5697,
-    "positive_rate": 0.1425,
+    "evaluation_rows": 5646,
+    "positive_rate": 0.1348,
     "metrics": [
       {
         "name": "PR-AUC",
-        "model_value": 0.5017,
-        "baseline_value": 0.3453,
+        "model_value": 0.5229,
+        "baseline_value": 0.358,
         "unit": "score",
         "interpretation": "Precision-recall performance on imbalanced future-hotspot labels."
       },
       {
         "name": "Recall@Top-10%",
-        "model_value": 0.3879,
-        "baseline_value": 0.3005,
+        "model_value": 0.4402,
+        "baseline_value": 0.3035,
         "unit": "score",
         "interpretation": "Fraction of future hotspot cells caught in the highest-risk decile."
       },
       {
         "name": "Brier Score",
-        "model_value": 0.1163,
-        "baseline_value": 0.4044,
+        "model_value": 0.1116,
+        "baseline_value": 0.4028,
         "unit": "loss",
         "interpretation": "Lower is better; measures probabilistic calibration."
       },
       {
         "name": "PR Curve Points",
-        "model_value": 5333,
-        "baseline_value": 5333,
+        "model_value": 5158,
+        "baseline_value": 5158,
         "unit": "points",
         "interpretation": "Number of threshold points available for deeper model review."
       }
     ],
     "confusion_summary": {
-      "true_positive_top_decile": 315,
-      "false_positive_top_decile": 254,
-      "missed_future_hotspots": 497,
-      "true_negative_cells": 4631
+      "true_positive_top_decile": 335,
+      "false_positive_top_decile": 229,
+      "missed_future_hotspots": 426,
+      "true_negative_cells": 4656
     },
     "calibration_bins": [
       {
-        "bin": 0.0141,
-        "predicted": 0.0141,
-        "observed": 0.1201
+        "bin": 0.0102,
+        "predicted": 0.0102,
+        "observed": 0.1124
       },
       {
-        "bin": 0.2678,
-        "predicted": 0.2678,
-        "observed": 0.5963
+        "bin": 0.2975,
+        "predicted": 0.2975,
+        "observed": 0.7184
       },
       {
-        "bin": 0.4884,
-        "predicted": 0.4884,
-        "observed": 0.7941
+        "bin": 0.4873,
+        "predicted": 0.4873,
+        "observed": 0.9091
       },
       {
-        "bin": 0.697,
-        "predicted": 0.697,
+        "bin": 0.6727,
+        "predicted": 0.6727,
         "observed": 0.8333
       },
       {
-        "bin": 0.9808,
-        "predicted": 0.9808,
-        "observed": 0.92
+        "bin": 0.8519,
+        "predicted": 0.8519,
+        "observed": 0.8889
       }
     ]
   },
   "evaluation_window": {
     "dataset": "DEA Hotspots WFS NSW held-out event window",
     "source_rows": 25800,
-    "scored_rows": 5697,
+    "scored_rows": 5646,
     "hotspot_start": "2020-01-10T00:10:00+00:00",
     "hotspot_end": "2020-01-15T22:40:00+00:00",
     "lookback_hours": 36,
     "step_hours": 12,
     "candidate_ring": 3,
     "trained_model_version": "hist-gradient-bushfire-risk-v1",
-    "trained_at": "2026-06-14T13:43:58.570610+00:00"
+    "trained_at": "2026-06-15T12:20:57.030066+00:00"
   },
   "case_counts": {
-    "true_negative": 4631,
-    "miss": 497,
-    "hit": 315,
-    "false_alarm": 254
+    "true_negative": 4656,
+    "miss": 426,
+    "hit": 335,
+    "false_alarm": 229
   },
   "cases": {
     "missed": [
       {
-        "h3_id": "85be1d6bfffffff",
-        "prediction_time": "2020-01-11T12:10:00+00:00",
-        "horizon_hours": 72,
-        "model_score": 0.0001,
-        "baseline_score": 0.93,
-        "rank": 5512,
+        "h3_id": "85be19d3fffffff",
+        "prediction_time": "2020-01-12T12:10:00+00:00",
+        "horizon_hours": 48,
+        "model_score": 0.0,
+        "baseline_score": 0.489,
+        "rank": 5628,
         "centroid": {
-          "lat": -32.09785093839604,
-          "lon": 152.09025065932477
+          "lat": -31.97391074661289,
+          "lon": 151.9558311797688
         }
       },
       {
@@ -121,34 +121,22 @@
         "horizon_hours": 24,
         "model_score": 0.0001,
         "baseline_score": 0.1319,
-        "rank": 5472,
+        "rank": 5521,
         "centroid": {
           "lat": -31.689264172805615,
           "lon": 151.8815463367784
         }
       },
       {
-        "h3_id": "85be1957fffffff",
+        "h3_id": "85be7677fffffff",
         "prediction_time": "2020-01-12T12:10:00+00:00",
         "horizon_hours": 24,
         "model_score": 0.0001,
-        "baseline_score": 0.2389,
-        "rank": 5470,
+        "baseline_score": 0.7717,
+        "rank": 5478,
         "centroid": {
-          "lat": -31.60148787022933,
-          "lon": 151.55499797139163
-        }
-      },
-      {
-        "h3_id": "85be19cffffffff",
-        "prediction_time": "2020-01-12T12:10:00+00:00",
-        "horizon_hours": 24,
-        "model_score": 0.0001,
-        "baseline_score": 0.3282,
-        "rank": 5455,
-        "centroid": {
-          "lat": -31.725725899779334,
-          "lon": 151.68820520639127
+          "lat": -36.02083074963039,
+          "lon": 149.23629251502555
         }
       },
       {
@@ -157,93 +145,81 @@
         "horizon_hours": 24,
         "model_score": 0.0001,
         "baseline_score": 0.1185,
-        "rank": 5430,
+        "rank": 5467,
         "centroid": {
           "lat": -31.565224481366936,
           "lon": 151.74808989438986
         }
       },
       {
-        "h3_id": "85bee007fffffff",
-        "prediction_time": "2020-01-12T00:10:00+00:00",
-        "horizon_hours": 24,
+        "h3_id": "85be19cbfffffff",
+        "prediction_time": "2020-01-12T12:10:00+00:00",
+        "horizon_hours": 48,
         "model_score": 0.0001,
-        "baseline_score": 0.2883,
-        "rank": 5394,
+        "baseline_score": 0.4303,
+        "rank": 5403,
         "centroid": {
-          "lat": -31.18921878556751,
-          "lon": 148.8437374222344
+          "lat": -31.689264172805615,
+          "lon": 151.8815463367784
         }
       },
       {
-        "h3_id": "85bee007fffffff",
+        "h3_id": "85be19d3fffffff",
         "prediction_time": "2020-01-12T12:10:00+00:00",
-        "horizon_hours": 24,
+        "horizon_hours": 72,
         "model_score": 0.0001,
-        "baseline_score": 0.3106,
-        "rank": 5395,
+        "baseline_score": 0.7081,
+        "rank": 5396,
         "centroid": {
-          "lat": -31.18921878556751,
-          "lon": 148.8437374222344
+          "lat": -31.97391074661289,
+          "lon": 151.9558311797688
         }
       },
       {
-        "h3_id": "85bee0dbfffffff",
+        "h3_id": "85bee097fffffff",
         "prediction_time": "2020-01-12T12:10:00+00:00",
-        "horizon_hours": 24,
+        "horizon_hours": 48,
         "model_score": 0.0001,
-        "baseline_score": 0.296,
+        "baseline_score": 0.3858,
         "rank": 5390,
         "centroid": {
-          "lat": -31.184608992876793,
-          "lon": 149.74203598020853
+          "lat": -31.727695651765504,
+          "lon": 149.16479418223284
+        }
+      },
+      {
+        "h3_id": "85be1953fffffff",
+        "prediction_time": "2020-01-12T12:10:00+00:00",
+        "horizon_hours": 48,
+        "model_score": 0.0001,
+        "baseline_score": 0.411,
+        "rank": 5347,
+        "centroid": {
+          "lat": -31.565224481366936,
+          "lon": 151.74808989438986
         }
       }
     ],
     "false_alarms": [
       {
-        "h3_id": "85be2b73fffffff",
-        "prediction_time": "2020-01-11T12:10:00+00:00",
-        "horizon_hours": 72,
-        "model_score": 0.9885,
-        "baseline_score": 0.5711,
-        "rank": 41,
-        "centroid": {
-          "lat": -35.75572368257141,
-          "lon": 150.86381541491352
-        }
-      },
-      {
-        "h3_id": "85be2b73fffffff",
-        "prediction_time": "2020-01-11T12:10:00+00:00",
+        "h3_id": "85be0a73fffffff",
+        "prediction_time": "2020-01-12T00:10:00+00:00",
         "horizon_hours": 48,
-        "model_score": 0.9883,
-        "baseline_score": 0.3272,
-        "rank": 42,
+        "model_score": 0.8739,
+        "baseline_score": 0.9012,
+        "rank": 3,
         "centroid": {
-          "lat": -35.75572368257141,
-          "lon": 150.86381541491352
-        }
-      },
-      {
-        "h3_id": "85be2b73fffffff",
-        "prediction_time": "2020-01-11T12:10:00+00:00",
-        "horizon_hours": 24,
-        "model_score": 0.9877,
-        "baseline_score": 0.0665,
-        "rank": 43,
-        "centroid": {
-          "lat": -35.75572368257141,
-          "lon": 150.86381541491352
+          "lat": -32.63422725862086,
+          "lon": 150.79910346549732
         }
       },
       {
         "h3_id": "85be0a73fffffff",
         "prediction_time": "2020-01-12T00:10:00+00:00",
-        "horizon_hours": 48,
-        "model_score": 0.8293,
-        "baseline_score": 0.9012,
-        "rank": 48,
+        "horizon_hours": 24,
+        "model_score": 0.6718,
+        "baseline_score": 0.7807,
+        "rank": 16,
         "centroid": {
           "lat": -32.63422725862086,
           "lon": 150.79910346549732
@@ -253,146 +229,170 @@
         "h3_id": "85be0d43fffffff",
         "prediction_time": "2020-01-12T00:10:00+00:00",
         "horizon_hours": 48,
-        "model_score": 0.7895,
+        "model_score": 0.6547,
         "baseline_score": 0.9073,
-        "rank": 51,
+        "rank": 17,
         "centroid": {
           "lat": -34.80642568703241,
           "lon": 150.3066553294049
         }
       },
       {
-        "h3_id": "85be0bc7fffffff",
-        "prediction_time": "2020-01-12T12:10:00+00:00",
+        "h3_id": "85be0aa3fffffff",
+        "prediction_time": "2020-01-11T12:10:00+00:00",
         "horizon_hours": 72,
-        "model_score": 0.6394,
-        "baseline_score": 0.5734,
-        "rank": 64,
+        "model_score": 0.6425,
+        "baseline_score": 0.93,
+        "rank": 19,
         "centroid": {
-          "lat": -33.25009635523696,
-          "lon": 149.823601321389
+          "lat": -33.27466615212201,
+          "lon": 150.54831708905527
         }
       },
       {
-        "h3_id": "85be0bc7fffffff",
-        "prediction_time": "2020-01-12T00:10:00+00:00",
-        "horizon_hours": 72,
-        "model_score": 0.6394,
-        "baseline_score": 0.5704,
-        "rank": 63,
+        "h3_id": "85be0aa3fffffff",
+        "prediction_time": "2020-01-11T12:10:00+00:00",
+        "horizon_hours": 48,
+        "model_score": 0.5607,
+        "baseline_score": 0.9034,
+        "rank": 37,
         "centroid": {
-          "lat": -33.25009635523696,
-          "lon": 149.823601321389
+          "lat": -33.27466615212201,
+          "lon": 150.54831708905527
         }
       },
       {
-        "h3_id": "85be0d43fffffff",
-        "prediction_time": "2020-01-12T00:10:00+00:00",
+        "h3_id": "85be0aa3fffffff",
+        "prediction_time": "2020-01-11T12:10:00+00:00",
         "horizon_hours": 24,
-        "model_score": 0.5606,
-        "baseline_score": 0.7929,
-        "rank": 73,
+        "model_score": 0.5456,
+        "baseline_score": 0.7848,
+        "rank": 41,
         "centroid": {
-          "lat": -34.80642568703241,
-          "lon": 150.3066553294049
+          "lat": -33.27466615212201,
+          "lon": 150.54831708905527
+        }
+      },
+      {
+        "h3_id": "85be0a2bfffffff",
+        "prediction_time": "2020-01-12T00:10:00+00:00",
+        "horizon_hours": 48,
+        "model_score": 0.4649,
+        "baseline_score": 0.9062,
+        "rank": 56,
+        "centroid": {
+          "lat": -32.70333554979346,
+          "lon": 150.4076636831931
+        }
+      },
+      {
+        "h3_id": "85be0a77fffffff",
+        "prediction_time": "2020-01-12T00:10:00+00:00",
+        "horizon_hours": 72,
+        "model_score": 0.4559,
+        "baseline_score": 0.93,
+        "rank": 61,
+        "centroid": {
+          "lat": -32.66893778400988,
+          "lon": 150.60343386827256
         }
       }
     ],
     "hits": [
       {
-        "h3_id": "85be087bfffffff",
-        "prediction_time": "2020-01-12T12:10:00+00:00",
-        "horizon_hours": 48,
-        "model_score": 0.9991,
-        "baseline_score": 0.1121,
+        "h3_id": "85be0a73fffffff",
+        "prediction_time": "2020-01-12T00:10:00+00:00",
+        "horizon_hours": 72,
+        "model_score": 0.9309,
+        "baseline_score": 0.93,
         "rank": 1,
         "centroid": {
-          "lat": -33.59472292920327,
-          "lon": 150.42153239157733
+          "lat": -32.63422725862086,
+          "lon": 150.79910346549732
         }
       },
       {
-        "h3_id": "85be087bfffffff",
+        "h3_id": "85bee493fffffff",
         "prediction_time": "2020-01-12T12:10:00+00:00",
         "horizon_hours": 72,
-        "model_score": 0.9988,
-        "baseline_score": 0.3165,
+        "model_score": 0.894,
+        "baseline_score": 0.93,
         "rank": 2,
         "centroid": {
-          "lat": -33.59472292920327,
-          "lon": 150.42153239157733
+          "lat": -32.5776104775828,
+          "lon": 150.27504040009364
         }
       },
       {
-        "h3_id": "85be0867fffffff",
-        "prediction_time": "2020-01-12T12:10:00+00:00",
-        "horizon_hours": 72,
-        "model_score": 0.9986,
-        "baseline_score": 0.4761,
-        "rank": 3,
-        "centroid": {
-          "lat": -33.662367687792816,
-          "lon": 150.02556703907337
-        }
-      },
-      {
-        "h3_id": "85be183bfffffff",
+        "h3_id": "85bee493fffffff",
         "prediction_time": "2020-01-12T12:10:00+00:00",
         "horizon_hours": 48,
-        "model_score": 0.9985,
-        "baseline_score": 0.0608,
+        "model_score": 0.8581,
+        "baseline_score": 0.9128,
         "rank": 4,
         "centroid": {
-          "lat": -31.454668419637823,
-          "lon": 152.32660457006932
+          "lat": -32.5776104775828,
+          "lon": 150.27504040009364
         }
       },
       {
-        "h3_id": "85be1813fffffff",
-        "prediction_time": "2020-01-12T12:10:00+00:00",
+        "h3_id": "85be7443fffffff",
+        "prediction_time": "2020-01-11T12:10:00+00:00",
         "horizon_hours": 72,
-        "model_score": 0.9985,
-        "baseline_score": 0.0881,
-        "rank": 6,
-        "centroid": {
-          "lat": -31.6635992119745,
-          "lon": 152.7884097028146
-        }
-      },
-      {
-        "h3_id": "85be1813fffffff",
-        "prediction_time": "2020-01-12T12:10:00+00:00",
-        "horizon_hours": 48,
-        "model_score": 0.9985,
-        "baseline_score": 0.0106,
+        "model_score": 0.8407,
+        "baseline_score": 0.93,
         "rank": 5,
         "centroid": {
-          "lat": -31.6635992119745,
-          "lon": 152.7884097028146
+          "lat": -37.037920215672905,
+          "lon": 149.37567466864803
         }
       },
       {
-        "h3_id": "85be1d4ffffffff",
+        "h3_id": "85be7443fffffff",
+        "prediction_time": "2020-01-12T00:10:00+00:00",
+        "horizon_hours": 72,
+        "model_score": 0.8313,
+        "baseline_score": 0.93,
+        "rank": 6,
+        "centroid": {
+          "lat": -37.037920215672905,
+          "lon": 149.37567466864803
+        }
+      },
+      {
+        "h3_id": "85be7443fffffff",
         "prediction_time": "2020-01-12T12:10:00+00:00",
-        "horizon_hours": 48,
-        "model_score": 0.9983,
-        "baseline_score": 0.0928,
+        "horizon_hours": 72,
+        "model_score": 0.8236,
+        "baseline_score": 0.93,
         "rank": 7,
         "centroid": {
-          "lat": -32.18441452649075,
-          "lon": 152.41939783439344
+          "lat": -37.037920215672905,
+          "lon": 149.37567466864803
         }
       },
       {
-        "h3_id": "85be18b7fffffff",
-        "prediction_time": "2020-01-12T12:10:00+00:00",
-        "horizon_hours": 48,
-        "model_score": 0.9982,
-        "baseline_score": 0.1767,
+        "h3_id": "85bee493fffffff",
+        "prediction_time": "2020-01-12T00:10:00+00:00",
+        "horizon_hours": 72,
+        "model_score": 0.8137,
+        "baseline_score": 0.93,
         "rank": 8,
         "centroid": {
-          "lat": -32.06078482167905,
-          "lon": 152.2843304254158
+          "lat": -32.5776104775828,
+          "lon": 150.27504040009364
+        }
+      },
+      {
+        "h3_id": "85be0d43fffffff",
+        "prediction_time": "2020-01-12T00:10:00+00:00",
+        "horizon_hours": 72,
+        "model_score": 0.8008,
+        "baseline_score": 0.93,
+        "rank": 9,
+        "centroid": {
+          "lat": -34.80642568703241,
+          "lon": 150.3066553294049
         }
       }
     ]

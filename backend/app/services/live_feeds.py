@@ -16,16 +16,32 @@ async def fetch_nsw_rfs_incidents(settings: Settings) -> list[Incident]:
             response = await client.get(settings.nsw_rfs_incidents_url)
             response.raise_for_status()
             payload = response.json()
+        return parse_nsw_rfs_incidents(payload)
     except Exception:
         return demo_incidents()
 
-    features: list[dict[str, Any]] = payload.get("features", [])
+
+def parse_nsw_rfs_incidents(payload: Any) -> list[Incident]:
+    if not isinstance(payload, dict):
+        return demo_incidents()
+
+    raw_features = payload.get("features", [])
+    if not isinstance(raw_features, list):
+        return demo_incidents()
+
     incidents: list[Incident] = []
-    for index, feature in enumerate(features[:20]):
+    for index, feature in enumerate(raw_features[:20]):
+        if not isinstance(feature, dict):
+            continue
         props = feature.get("properties", {})
         geometry = feature.get("geometry", {})
+        props = props if isinstance(props, dict) else {}
+        geometry = geometry if isinstance(geometry, dict) else {}
         coordinates = geometry.get("coordinates") or [151.2093, -33.8688]
-        lon, lat = coordinates[:2]
+        if not isinstance(coordinates, list | tuple) or len(coordinates) < 2:
+            continue
+        lon = _float_or_default(coordinates[0], 151.2093)
+        lat = _float_or_default(coordinates[1], -33.8688)
         updated = datetime.now(UTC)
         incidents.append(
             Incident(
@@ -35,11 +51,17 @@ async def fetch_nsw_rfs_incidents(settings: Settings) -> list[Incident]:
                 alert_level=str(props.get("alert_level") or props.get("alertLevel") or "Advice"),
                 started_at=updated,
                 updated_at=updated,
-                lat=float(lat),
-                lon=float(lon),
-                size_hectares=float(props.get("size") or props.get("area") or 0),
+                lat=lat,
+                lon=lon,
+                size_hectares=max(0.0, _float_or_default(props.get("size") or props.get("area"), 0.0)),
                 source="nsw-rfs-live",
             )
         )
     return incidents or demo_incidents()
 
+
+def _float_or_default(value: Any, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default

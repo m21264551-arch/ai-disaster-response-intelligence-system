@@ -114,9 +114,9 @@ This creates `backend/app/data/osm_infrastructure_sample.csv`. When present, the
 
 | Metric | Trained model | Wind-aligned baseline |
 | --- | ---: | ---: |
-| PR-AUC | 0.6849 | 0.0462 |
-| Recall@Top-10% | 0.7362 | 0.1166 |
-| Brier Score | 0.0246 | 0.4924 |
+| PR-AUC | 0.2625 | 0.0493 |
+| Recall@Top-10% | 0.5829 | 0.2193 |
+| Brier Score | 0.0240 | 0.4872 |
 
 ## Held-Out Evaluation
 
@@ -151,9 +151,9 @@ Held-out metrics:
 
 | Metric | Frozen model | Wind-aligned baseline |
 | --- | ---: | ---: |
-| PR-AUC | 0.5017 | 0.3453 |
-| Recall@Top-10% | 0.3879 | 0.3005 |
-| Brier Score | 0.1163 | 0.4044 |
+| PR-AUC | 0.5229 | 0.3580 |
+| Recall@Top-10% | 0.4402 | 0.3035 |
+| Brier Score | 0.1116 | 0.4028 |
 
 The dashboard reads `heldout_failure_analysis.json` through `/heldout/failure-analysis` and shows top hits, worst misses, and false alarms.
 

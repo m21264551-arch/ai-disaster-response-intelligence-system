@@ -55,9 +55,9 @@ Current benchmark:
 
 | Metric | Trained model | Wind-aligned baseline |
 | --- | ---: | ---: |
-| PR-AUC | 0.6849 | 0.0462 |
-| Recall@Top-10% | 0.7362 | 0.1166 |
-| Brier Score | 0.0246 | 0.4924 |
+| PR-AUC | 0.2625 | 0.0493 |
+| Recall@Top-10% | 0.5829 | 0.2193 |
+| Brier Score | 0.0240 | 0.4872 |
 
 Held-out benchmark:
 
@@ -65,14 +65,14 @@ Held-out benchmark:
 - Region: wider NSW bbox `148.7,-37.4,153.8,-31.1`.
 - Window: January 10-16, 2020 UTC.
 - Raw hotspot rows: `25,800`.
-- Temporal H3 examples: `5,697`.
+- Temporal H3 examples: `5,646`.
 - Procedure: freeze `hist-gradient-bushfire-risk-v1`, rebuild features from the held-out window, score without retraining, and compare to the wind-aligned baseline.
 
 | Metric | Frozen model | Wind-aligned baseline |
 | --- | ---: | ---: |
-| PR-AUC | 0.5017 | 0.3453 |
-| Recall@Top-10% | 0.3879 | 0.3005 |
-| Brier Score | 0.1163 | 0.4044 |
+| PR-AUC | 0.5229 | 0.3580 |
+| Recall@Top-10% | 0.4402 | 0.3035 |
+| Brier Score | 0.1116 | 0.4028 |
 
 The held-out failure artifact stores representative top-decile hits, missed future hotspot cells, and false alarms with H3 IDs, scores, ranks, horizons, and centroids. The dashboard exposes those cases through `/heldout/failure-analysis`.
 

@@ -94,6 +94,8 @@ The weather feature join uses public Bureau of Meteorology daily evapotranspirat
 
 The committed sample covers selected NSW, VIC, QLD, SA, and WA stations from November 2019 through January 2020. Feature generation only joins observations from completed days before the prediction timestamp.
 
+Security note: the optional downloader uses BoM's public FTP table endpoint because a working HTTPS mirror was not available during this build. Treat fresh downloads as unauthenticated public-feed input: run them from a trusted network, review the resulting CSV diff before replacing the committed sample, and keep the committed sample for reproducible public demos.
+
 ## Publication Notes
 
 - Keep `.env` and `.env.*` files private.

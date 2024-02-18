@@ -52,18 +52,18 @@ This project is intentionally a portfolio-grade ML engineering demo, not an oper
 
 | Evaluation | Model PR-AUC | Baseline PR-AUC | Model Recall@Top-10% | Baseline Recall@Top-10% | Model Brier | Baseline Brier |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Multi-state temporal split | 0.6849 | 0.0462 | 0.7362 | 0.1166 | 0.0246 | 0.4924 |
-| Held-out NSW window, Jan 10-16 2020 | 0.5017 | 0.3453 | 0.3879 | 0.3005 | 0.1163 | 0.4044 |
+| Multi-state temporal split | 0.2625 | 0.0493 | 0.5829 | 0.2193 | 0.0240 | 0.4872 |
+| Held-out NSW window, Jan 10-16 2020 | 0.5229 | 0.3580 | 0.4402 | 0.3035 | 0.1116 | 0.4028 |
 
 ## National Model Benchmark
 
-The repository includes a trained artifact from a bounded `13,586`-row DEA hotspot corpus covering selected windows in NSW, VIC, QLD, SA, and WA from November 2019 through January 2020. The feature builder expands those observations into `24,076` temporal H3 training examples across 24/48/72-hour prediction horizons, with real BoM weather and ABS H3 population features.
+The repository includes a trained artifact from a bounded `13,586`-row DEA hotspot corpus covering selected windows in NSW, VIC, QLD, SA, and WA from November 2019 through January 2020. The feature builder expands those observations into `23,790` temporal H3 training examples across 24/48/72-hour prediction horizons, with real BoM weather and ABS H3 population features.
 
 | Metric | Trained model | Wind-aligned baseline |
 | --- | ---: | ---: |
-| PR-AUC | 0.6849 | 0.0462 |
-| Recall@Top-10% | 0.7362 | 0.1166 |
-| Brier Score | 0.0246 | 0.4924 |
+| PR-AUC | 0.2625 | 0.0493 |
+| Recall@Top-10% | 0.5829 | 0.2193 |
+| Brier Score | 0.0240 | 0.4872 |
 
 Artifacts:
 
@@ -78,13 +78,13 @@ Artifacts:
 
 ## Held-Out Event Benchmark
 
-The frozen model is also scored on an unseen DEA hotspot window from January 10-16, 2020 across a wider NSW bbox. This produces `5,697` H3-time examples from `25,800` raw hotspot rows.
+The frozen model is also scored on an unseen DEA hotspot window from January 10-16, 2020 across a wider NSW bbox. This produces `5,646` H3-time examples from `25,800` raw hotspot rows.
 
 | Metric | Frozen model | Wind-aligned baseline |
 | --- | ---: | ---: |
-| PR-AUC | 0.5017 | 0.3453 |
-| Recall@Top-10% | 0.3879 | 0.3005 |
-| Brier Score | 0.1163 | 0.4044 |
+| PR-AUC | 0.5229 | 0.3580 |
+| Recall@Top-10% | 0.4402 | 0.3035 |
+| Brier Score | 0.1116 | 0.4028 |
 
 Held-out artifacts:
 
@@ -212,7 +212,7 @@ PYTHONPATH=backend .venv/bin/python backend/scripts/evaluate_heldout_model.py \
 
 **Data Scientist / Applied ML**
 
-- Designed a leakage-safe bushfire forecasting pipeline that labels future hotspot emergence by H3 cell and timestamp; improved multi-state temporal-split PR-AUC from `0.0462` to `0.6849` and held-out-window PR-AUC from `0.3453` to `0.5017` over a wind-aligned spread baseline, with Brier score and Recall@Top-10% reporting.
+- Designed a leakage-safe bushfire forecasting pipeline that labels future hotspot emergence by H3 cell and timestamp; improved multi-state temporal-split PR-AUC from `0.0493` to `0.2625` and held-out-window PR-AUC from `0.3580` to `0.5229` over a wind-aligned spread baseline, with Brier score and Recall@Top-10% reporting.
 
 **Full-Stack ML / Product Engineering**
 

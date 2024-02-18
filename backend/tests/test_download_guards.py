@@ -4,6 +4,8 @@ import pytest
 
 from scripts.download_abs_population_grid import ABS_POPULATION_GEOTIFF_URL, extract_geotiff, validate_abs_download_url
 from scripts.download_bom_weather import parse_station_specs, validate_bom_download_url
+from scripts.download_dea_hotspots import parse_bbox as parse_dea_bbox
+from scripts.download_dea_hotspots import validate_state
 
 
 def test_abs_download_url_guard_allows_expected_public_zip():
@@ -45,3 +47,14 @@ def test_bom_station_specs_reject_path_segments():
 
     with pytest.raises(ValueError):
         parse_station_specs(["nsw:../bega"])
+
+
+def test_dea_state_and_bbox_guards_reject_cql_fragments():
+    assert validate_state("nsw") == "NSW"
+    assert parse_dea_bbox("148.7,-37.4,153.8,-31.1") == (148.7, -37.4, 153.8, -31.1)
+
+    with pytest.raises(ValueError):
+        validate_state("NSW' OR INCLUDE")
+
+    with pytest.raises(ValueError):
+        parse_dea_bbox("148.7,-37.4,153.8 OR INCLUDE,-31.1")

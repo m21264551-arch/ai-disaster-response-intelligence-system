@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urlencode
@@ -10,6 +11,8 @@ import httpx
 import pandas as pd
 
 DEA_WFS_URL = "https://hotspots.dea.ga.gov.au/geoserver/wfs"
+ALLOWED_STATES = {"ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"}
+STATE_PATTERN = re.compile(r"^[A-Z]{2,3}$")
 
 
 def main() -> None:
@@ -51,6 +54,8 @@ def download_dea_hotspots(
     rows: list[dict] = []
     chunk_start = _parse_utc(start)
     end_dt = _parse_utc(end)
+    state = validate_state(state)
+    parsed_bbox = parse_bbox(bbox) if bbox else None
 
     with httpx.Client(timeout=60.0) as client:
         while chunk_start < end_dt and len(rows) < max_records:
@@ -60,8 +65,8 @@ def download_dea_hotspots(
                 f"datetime AFTER {_format_utc(chunk_start)}",
                 f"datetime BEFORE {_format_utc(chunk_end)}",
             ]
-            if bbox:
-                west, south, east, north = bbox.split(",")
+            if parsed_bbox:
+                west, south, east, north = parsed_bbox
                 filters.append(f"BBOX(location,{west},{south},{east},{north},'EPSG:4326')")
             cql_filter = " AND ".join(filters)
             params = {
@@ -109,6 +114,29 @@ def _parse_utc(value: str):
 
 def _format_utc(value) -> str:
     return pd.Timestamp(value).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def validate_state(value: str) -> str:
+    state = value.strip().upper()
+    if not STATE_PATTERN.fullmatch(state) or state not in ALLOWED_STATES:
+        raise ValueError(f"Unsupported Australian state: {value}")
+    return state
+
+
+def parse_bbox(value: str | None) -> tuple[float, float, float, float] | None:
+    if not value:
+        return None
+    parts = [float(part.strip()) for part in value.split(",")]
+    if len(parts) != 4:
+        raise ValueError("--bbox must be west,south,east,north")
+    west, south, east, north = parts
+    if west >= east or south >= north:
+        raise ValueError("--bbox must be west,south,east,north")
+    if not (-180 <= west <= 180 and -180 <= east <= 180):
+        raise ValueError("--bbox longitude values must be valid")
+    if not (-90 <= south <= 90 and -90 <= north <= 90):
+        raise ValueError("--bbox latitude values must be valid")
+    return west, south, east, north
 
 
 if __name__ == "__main__":
