@@ -26,6 +26,21 @@ Demo flow:
 
 For a polished walkthrough, use [Demo Video Script](docs/demo-video-script.md).
 
+## Free HTTPS Deployment
+
+The repo includes a Vercel deployment path for a public read-only demo:
+
+- Static dashboard is built from `frontend/`.
+- FastAPI is served from `api/index.py` under `/api`.
+- The frontend build uses `VITE_API_BASE_URL=/api`, so the deployed app runs from one HTTPS origin.
+
+```bash
+vercel login
+vercel --prod
+```
+
+Keep `DISASTER_INTEL_MODE=demo` for the public deployment unless you intentionally wire live feeds and rate limits.
+
 ## Recruiter Signal
 
 - **Real data:** trained on a `13,586`-row, five-state Digital Earth Australia hotspot corpus, enriched with `1,656` Bureau of Meteorology station-day observations and `10,247` ABS population-grid H3 cells, then evaluated on `25,800` unseen held-out rows.
