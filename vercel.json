@@ -1,11 +1,5 @@
 {
-  "buildCommand": "cd frontend && npm ci --audit=false --fund=false && VITE_API_BASE_URL=/api npm run build && cd .. && rm -rf public && cp -R frontend/dist public",
-  "outputDirectory": "public",
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 30
-    }
-  },
+  "buildCommand": "cd frontend && npm ci --audit=false --fund=false && VITE_API_BASE_URL=/api npm run build && cd .. && rm -rf dashboard-static && mkdir -p dashboard-static && cp -R frontend/dist/. dashboard-static/",
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -13,7 +7,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/api/index.py"
     }
   ]
 }

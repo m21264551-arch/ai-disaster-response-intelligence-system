@@ -16,3 +16,4 @@ public/
 *.pyo
 *.log
 .DS_Store
+.vercel
