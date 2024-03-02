@@ -5,9 +5,11 @@ import { compactNumber, percent, timeLabel } from "../lib/format";
 
 interface HeldoutPanelProps {
   evaluation: HeldoutEvaluation | null;
+  sectionId?: string;
+  active?: boolean;
 }
 
-export function HeldoutPanel({ evaluation }: HeldoutPanelProps) {
+export function HeldoutPanel({ evaluation, sectionId, active = false }: HeldoutPanelProps) {
   const metrics = evaluation?.metrics.metrics.filter((metric) => metric.name !== "PR Curve Points") ?? [];
   const sourceRows = numericWindowValue(evaluation, "source_rows");
   const scoredRows = evaluation?.metrics.evaluation_rows ?? numericWindowValue(evaluation, "scored_rows");
@@ -15,7 +17,11 @@ export function HeldoutPanel({ evaluation }: HeldoutPanelProps) {
   const hotspotEnd = stringWindowValue(evaluation, "hotspot_end");
 
   return (
-    <section className="heldout-panel">
+    <section
+      id={sectionId}
+      className={active ? "heldout-panel section-anchor active-section" : "heldout-panel section-anchor"}
+      tabIndex={sectionId ? -1 : undefined}
+    >
       <div className="metrics-heading heldout-heading">
         <ShieldCheck size={18} />
         <span>Held-Out Event Test</span>

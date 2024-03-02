@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Pause, Play, RotateCcw } from "lucide-react";
+import { Eye, EyeOff, Pause, Play, SkipForward } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Horizon, RevealResponse, ReplayEvent } from "../lib/types";
 import { percent, timeLabel } from "../lib/format";
@@ -11,6 +11,8 @@ interface ReplayTimelineProps {
   reveal: RevealResponse | null;
   revealVisible: boolean;
   revealLoading: boolean;
+  sectionId?: string;
+  active?: boolean;
   onReplayTimeChange: (value: string) => void;
   onRevealToggle: () => void;
 }
@@ -33,6 +35,8 @@ export function ReplayTimeline({
   reveal,
   revealVisible,
   revealLoading,
+  sectionId,
+  active = false,
   onReplayTimeChange,
   onRevealToggle,
 }: ReplayTimelineProps) {
@@ -59,18 +63,35 @@ export function ReplayTimeline({
   }
 
   return (
-    <section className="timeline-panel">
+    <section
+      id={sectionId}
+      className={active ? "timeline-panel section-anchor active-section" : "timeline-panel section-anchor"}
+      tabIndex={sectionId ? -1 : undefined}
+    >
       <div className="timeline-copy">
         <span>Replay Timeline</span>
         <strong>{replay ? replay.description : "Loading replay window"}</strong>
       </div>
 
       <div className="timeline-controls">
-        <button type="button" className="icon-button" onClick={() => setPlaying((value) => !value)} aria-label="Toggle replay">
+        <button
+          type="button"
+          className={playing ? "icon-button active" : "icon-button"}
+          onClick={() => setPlaying((value) => !value)}
+          aria-label={playing ? "Pause replay" : "Play replay"}
+          aria-pressed={playing}
+          data-testid="replay-toggle"
+        >
           {playing ? <Pause size={18} /> : <Play size={18} />}
         </button>
-        <button type="button" className="icon-button" onClick={stepForward} aria-label="Advance replay">
-          <RotateCcw size={18} />
+        <button
+          type="button"
+          className="icon-button"
+          onClick={stepForward}
+          aria-label="Advance replay"
+          data-testid="replay-advance"
+        >
+          <SkipForward size={18} />
         </button>
         <div className="timeline-track" role="slider" aria-valuemin={0} aria-valuemax={STEPS.length - 1} aria-valuenow={activeIndex}>
           <div className="timeline-progress" style={{ width: `${progress}%` }} />
@@ -82,6 +103,8 @@ export function ReplayTimeline({
               style={{ left: `${(index / (STEPS.length - 1)) * 100}%` }}
               onClick={() => onReplayTimeChange(step)}
               aria-label={`Set replay to ${timeLabel(step)}`}
+              aria-current={index === activeIndex ? "step" : undefined}
+              data-testid={`replay-step-${index}`}
             />
           ))}
         </div>
@@ -97,7 +120,15 @@ export function ReplayTimeline({
           className="reveal-button"
           onClick={onRevealToggle}
           aria-pressed={revealVisible}
+          aria-label={
+            revealLoading
+              ? "Computing reveal"
+              : revealVisible
+                ? "Hide actual spread"
+                : `Reveal actual ${horizon}h spread`
+          }
           disabled={revealLoading}
+          data-testid="reveal-toggle"
         >
           {revealVisible ? <EyeOff size={17} /> : <Eye size={17} />}
           {revealLoading

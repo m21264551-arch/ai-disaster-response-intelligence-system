@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BarChart3, Flame, Loader2, RadioTower } from "lucide-react";
+import { AlertTriangle, BarChart3, Eye, EyeOff, Flame, Loader2, RadioTower } from "lucide-react";
 import { api } from "./lib/api";
 import type {
   AllocateResponse,
@@ -15,7 +15,7 @@ import type {
   RiskCell,
 } from "./lib/types";
 import { AllocationPanel } from "./components/AllocationPanel";
-import { AppSidebar } from "./components/AppSidebar";
+import { AppSidebar, type AppSectionId } from "./components/AppSidebar";
 import { EvidenceStrip } from "./components/EvidenceStrip";
 import { HeldoutPanel } from "./components/HeldoutPanel";
 import { HorizonControl } from "./components/HorizonControl";
@@ -34,6 +34,7 @@ const HORIZONS: Horizon[] = [24, 48, 72];
 
 export default function App() {
   const [horizon, setHorizon] = useState<Horizon>(24);
+  const [activeSection, setActiveSection] = useState<AppSectionId>("operations");
   const [selectedH3Id, setSelectedH3Id] = useState<string | null>(null);
   const [replayTime, setReplayTime] = useState(DEFAULT_START);
   const [replay, setReplay] = useState<ReplayEvent | null>(null);
@@ -140,9 +141,30 @@ export default function App() {
   const selectedExposure = selectedCell ? exposureById.get(selectedCell.h3_id) ?? null : null;
   const primaryIncident = incidents[0] ?? null;
 
+  function handleSectionSelect(section: AppSectionId) {
+    setActiveSection(section);
+    window.history.replaceState(null, "", `#section-${section}`);
+    window.setTimeout(() => scrollSectionIntoView(section), 0);
+  }
+
+  function scrollSectionIntoView(section: AppSectionId) {
+    const target = document.getElementById(`section-${section}`);
+    if (!target) {
+      return;
+    }
+    const top = target.getBoundingClientRect().top + window.scrollY - 18;
+    window.scrollTo({ top, behavior: "smooth" });
+    const scrollTop = Math.max(0, top);
+    if (document.scrollingElement) {
+      document.scrollingElement.scrollTop = scrollTop;
+    }
+    document.documentElement.scrollTop = scrollTop;
+    document.body.scrollTop = scrollTop;
+  }
+
   return (
     <div className="app-shell">
-      <AppSidebar />
+      <AppSidebar activeSection={activeSection} onSectionSelect={handleSectionSelect} />
       <main className="workspace">
         <TopBar
           replay={replay}
@@ -151,7 +173,14 @@ export default function App() {
           predictionRunId={prediction?.prediction_run_id}
         />
 
-        <section className="command-row" aria-label="Prediction controls">
+        <section
+          id="section-operations"
+          className={
+            activeSection === "operations" ? "command-row section-anchor active-section" : "command-row section-anchor"
+          }
+          aria-label="Prediction controls"
+          tabIndex={-1}
+        >
           <div className="command-copy">
             <div className="system-mark">
               <RadioTower size={18} />
@@ -160,7 +189,33 @@ export default function App() {
             <h1>NSW Bushfire Operations Console</h1>
             <p>{timeLabel(replayTime)} prediction cut-off · {horizon}h forecast · future hotspots withheld</p>
           </div>
-          <HorizonControl horizon={horizon} horizons={HORIZONS} onChange={setHorizon} />
+          <div className="control-cluster">
+            <HorizonControl horizon={horizon} horizons={HORIZONS} onChange={setHorizon} />
+            <button
+              type="button"
+              className={revealVisible && reveal ? "reveal-command active" : "reveal-command"}
+              onClick={handleRevealToggle}
+              aria-pressed={revealVisible}
+              aria-label={
+                revealLoading
+                  ? "Computing reveal"
+                  : revealVisible
+                    ? "Hide actual spread"
+                    : `Reveal actual ${horizon}h spread`
+              }
+              disabled={revealLoading}
+              data-testid="reveal-toggle-primary"
+            >
+              {revealLoading ? (
+                <Loader2 className="spin" size={17} />
+              ) : revealVisible ? (
+                <EyeOff size={17} />
+              ) : (
+                <Eye size={17} />
+              )}
+              {revealLoading ? "Computing" : revealVisible ? "Hide spread" : `Reveal ${horizon}h`}
+            </button>
+          </div>
         </section>
 
         <EvidenceStrip metrics={metrics} heldout={heldout} prediction={prediction} horizon={horizon} />
@@ -174,7 +229,11 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <section className="dashboard-grid">
+          <section
+            id="section-risk"
+            className={activeSection === "risk" ? "dashboard-grid section-anchor active-section" : "dashboard-grid section-anchor"}
+            tabIndex={-1}
+          >
             <div className="map-region">
               {status === "loading" && (
                 <div className="loading-overlay">
@@ -204,7 +263,12 @@ export default function App() {
               </Suspense>
             </div>
 
-            <aside className="right-rail" aria-label="Incident and forecast detail">
+            <aside
+              id="section-exposure"
+              className={activeSection === "exposure" ? "right-rail section-anchor active-section" : "right-rail section-anchor"}
+              aria-label="Incident and forecast detail"
+              tabIndex={-1}
+            >
               <IncidentPanel
                 incident={primaryIncident}
                 selectedCell={selectedCell ?? null}
@@ -218,6 +282,8 @@ export default function App() {
 
         <section className="bottom-grid">
           <ReplayTimeline
+            sectionId="section-pipelines"
+            active={activeSection === "pipelines"}
             replay={replay}
             replayTime={replayTime}
             onReplayTimeChange={setReplayTime}
@@ -228,8 +294,8 @@ export default function App() {
             revealLoading={revealLoading}
             onRevealToggle={handleRevealToggle}
           />
-          <MetricsStrip metrics={metrics} />
-          <HeldoutPanel evaluation={heldout} />
+          <MetricsStrip sectionId="section-evaluation" active={activeSection === "evaluation"} metrics={metrics} />
+          <HeldoutPanel sectionId="section-lineage" active={activeSection === "lineage"} evaluation={heldout} />
         </section>
 
         <footer className="disclaimer">

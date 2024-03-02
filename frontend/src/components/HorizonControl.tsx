@@ -17,6 +17,7 @@ export function HorizonControl({ horizon, horizons, onChange }: HorizonControlPr
           className={value === horizon ? "horizon active" : "horizon"}
           key={value}
           onClick={() => onChange(value)}
+          data-testid={`horizon-${value}`}
         >
           {value}h
         </button>
@@ -24,4 +25,3 @@ export function HorizonControl({ horizon, horizons, onChange }: HorizonControlPr
     </div>
   );
 }
-

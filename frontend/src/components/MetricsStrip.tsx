@@ -3,13 +3,19 @@ import type { ModelMetrics } from "../lib/types";
 
 interface MetricsStripProps {
   metrics: ModelMetrics | null;
+  sectionId?: string;
+  active?: boolean;
 }
 
-export function MetricsStrip({ metrics }: MetricsStripProps) {
+export function MetricsStrip({ metrics, sectionId, active = false }: MetricsStripProps) {
   const visibleMetrics = (metrics?.metrics ?? []).filter((metric) => metric.name !== "PR Curve Points");
 
   return (
-    <section className="metrics-panel">
+    <section
+      id={sectionId}
+      className={active ? "metrics-panel section-anchor active-section" : "metrics-panel section-anchor"}
+      tabIndex={sectionId ? -1 : undefined}
+    >
       <div className="metrics-heading">
         <Activity size={18} />
         <span>Model Evaluation</span>
