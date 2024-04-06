@@ -2,6 +2,7 @@ import { AlertOctagon, Building2, Flame, Hospital, Route, School } from "lucide-
 import type { ReactNode } from "react";
 import type { Exposure, Horizon, Incident, RiskCell } from "../lib/types";
 import { compactNumber, percent, timeLabel } from "../lib/format";
+import { InfoTip } from "./InfoTip";
 
 interface IncidentPanelProps {
   incident: Incident | null;
@@ -41,7 +42,14 @@ export function IncidentPanel({ incident, selectedCell, selectedExposure, horizo
         <div className="risk-main">
           <Flame size={24} />
           <div>
-            <span>Selected H3 Cell</span>
+            <span className="label-with-help">
+              Selected H3 Cell
+              <InfoTip
+                label="Selected H3 Cell"
+                text="H3 is the hexagonal grid index used to score one forecast area at a time."
+                placement="left"
+              />
+            </span>
             <strong>{selectedCell ? percent(selectedCell.risk_score) : "--"}</strong>
           </div>
         </div>
@@ -62,20 +70,43 @@ export function IncidentPanel({ incident, selectedCell, selectedExposure, horizo
       </div>
 
       <div className="exposure-grid">
-        <ExposureItem icon={<Building2 size={17} />} label="Population" value={compactNumber(selectedExposure?.population ?? 0)} />
-        <ExposureItem icon={<Hospital size={17} />} label="Hospitals" value={String(selectedExposure?.hospitals ?? 0)} />
-        <ExposureItem icon={<School size={17} />} label="Schools" value={String(selectedExposure?.schools ?? 0)} />
-        <ExposureItem icon={<Route size={17} />} label="Roads" value={String(selectedExposure?.major_roads ?? 0)} />
+        <ExposureItem
+          icon={<Building2 size={17} />}
+          label="Population"
+          help="Estimated people exposed in the selected H3 cell from the ABS population grid."
+          value={compactNumber(selectedExposure?.population ?? 0)}
+        />
+        <ExposureItem
+          icon={<Hospital size={17} />}
+          label="Hospitals"
+          help="Critical-health facilities estimated near this cell for allocation prioritization."
+          value={String(selectedExposure?.hospitals ?? 0)}
+        />
+        <ExposureItem
+          icon={<School size={17} />}
+          label="Schools"
+          help="School assets near this cell, used as one proxy for community exposure."
+          value={String(selectedExposure?.schools ?? 0)}
+        />
+        <ExposureItem
+          icon={<Route size={17} />}
+          label="Roads"
+          help="Major road exposure near this cell, used to surface response and access constraints."
+          value={String(selectedExposure?.major_roads ?? 0)}
+        />
       </div>
     </section>
   );
 }
 
-function ExposureItem({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+function ExposureItem({ icon, label, help, value }: { icon: ReactNode; label: string; help: string; value: string }) {
   return (
     <div className="exposure-item">
       {icon}
-      <span>{label}</span>
+      <span className="label-with-help">
+        {label}
+        <InfoTip label={label} text={help} placement="left" />
+      </span>
       <strong>{value}</strong>
     </div>
   );

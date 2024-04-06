@@ -2,6 +2,7 @@ import { Eye, EyeOff, Pause, Play, SkipForward } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Horizon, RevealResponse, ReplayEvent } from "../lib/types";
 import { percent, timeLabel } from "../lib/format";
+import { InfoTip } from "./InfoTip";
 
 interface ReplayTimelineProps {
   replay: ReplayEvent | null;
@@ -69,7 +70,13 @@ export function ReplayTimeline({
       tabIndex={sectionId ? -1 : undefined}
     >
       <div className="timeline-copy">
-        <span>Replay Timeline</span>
+        <span className="label-with-help">
+          Replay Timeline
+          <InfoTip
+            label="Replay Timeline"
+            text="Move the cut-off time. The model can only use hotspots observed up to that point."
+          />
+        </span>
         <strong>{replay ? replay.description : "Loading replay window"}</strong>
       </div>
 
@@ -140,10 +147,34 @@ export function ReplayTimeline({
 
         {revealVisible && reveal ? (
           <div className="reveal-stats" aria-label="Prediction reveal results">
-            <span>Hits <strong>{reveal.summary.hits}</strong></span>
-            <span>Misses <strong>{reveal.summary.misses}</strong></span>
-            <span>False alarms <strong>{reveal.summary.false_alarms}</strong></span>
-            <span>Recall <strong>{percent(reveal.summary.recall)}</strong></span>
+            <span>
+              <span className="label-with-help">
+                Hits
+                <InfoTip label="Hits" text="Predicted risk cells that matched actual future hotspot cells." />
+              </span>
+              <strong>{reveal.summary.hits}</strong>
+            </span>
+            <span>
+              <span className="label-with-help">
+                Misses
+                <InfoTip label="Misses" text="Actual future hotspot cells not covered by the selected predictions." />
+              </span>
+              <strong>{reveal.summary.misses}</strong>
+            </span>
+            <span>
+              <span className="label-with-help">
+                False alarms
+                <InfoTip label="False alarms" text="Predicted risk cells where no matching future hotspot appeared." />
+              </span>
+              <strong>{reveal.summary.false_alarms}</strong>
+            </span>
+            <span>
+              <span className="label-with-help">
+                Recall
+                <InfoTip label="Recall" text="Share of actual future hotspot cells captured by the forecast." placement="left" />
+              </span>
+              <strong>{percent(reveal.summary.recall)}</strong>
+            </span>
           </div>
         ) : (
           <p>Compare the forecast made at replay time against future hotspots in the selected horizon.</p>
