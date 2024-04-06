@@ -9,6 +9,7 @@ import {
   revealCellFeatureCollection,
   riskFeatureCollection,
 } from "../lib/geojson";
+import { InfoTip } from "./InfoTip";
 
 interface MapPanelProps {
   bbox: number[];
@@ -276,11 +277,21 @@ export function MapPanel({
     <div className="map-panel" role="region" aria-label="Bushfire risk forecast map">
       <div className="map-toolbar">
         <div>
-          <span>Risk Forecast</span>
+          <span className="label-with-help">
+            Risk Forecast
+            <InfoTip
+              label="Risk Forecast"
+              text="Each colored hexagon is an H3 cell scored for future hotspot risk at the selected horizon."
+            />
+          </span>
           <strong>{horizon}h horizon</strong>
         </div>
         <div className="map-score">
-          Peak risk <strong>{Math.round(topRisk * 100)}%</strong>
+          <span className="label-with-help">
+            Peak risk
+            <InfoTip label="Peak risk" text="Highest model probability among the currently visible forecast cells." placement="left" />
+          </span>
+          <strong>{Math.round(topRisk * 100)}%</strong>
         </div>
       </div>
       <div

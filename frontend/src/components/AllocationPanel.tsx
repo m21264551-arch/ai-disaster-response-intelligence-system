@@ -1,5 +1,6 @@
 import { AlertTriangle, Crosshair, Loader2, Route } from "lucide-react";
 import type { AllocateResponse, RiskCell } from "../lib/types";
+import { InfoTip } from "./InfoTip";
 
 interface AllocationPanelProps {
   allocation: AllocateResponse | null;
@@ -16,7 +17,14 @@ export function AllocationPanel({ allocation, selectedCell, loading = false, err
     <section className="panel allocation-panel">
       <div className="panel-heading">
         <div>
-          <span>Resource Allocation</span>
+          <span className="label-with-help">
+            Resource Allocation
+            <InfoTip
+              label="Resource Allocation"
+              text="Ranks crews and supplies by model risk, exposed population, infrastructure, and staging distance."
+              placement="left"
+            />
+          </span>
           <h2>{heading}</h2>
         </div>
         {loading ? <Loader2 className="spin" size={22} /> : <Crosshair size={22} />}

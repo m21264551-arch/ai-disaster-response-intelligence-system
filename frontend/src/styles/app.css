@@ -350,6 +350,12 @@ button:focus-visible {
   background: rgba(255, 255, 255, 0.05);
 }
 
+.horizon-control-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .control-cluster {
   display: inline-flex;
   align-items: center;
@@ -400,6 +406,132 @@ button:focus-visible {
 .reveal-command:disabled {
   cursor: progress;
   opacity: 0.72;
+}
+
+.label-with-help {
+  display: inline-flex !important;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  vertical-align: middle;
+}
+
+.info-tip {
+  position: relative;
+  z-index: 8;
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(226, 255, 248, 0.2);
+  border-radius: 999px;
+  color: var(--faint);
+  background: rgba(255, 255, 255, 0.045);
+  cursor: help;
+}
+
+.info-tip:hover,
+.info-tip:focus,
+.info-tip:focus-visible {
+  color: var(--teal);
+  border-color: rgba(47, 228, 204, 0.44);
+  background: rgba(47, 228, 204, 0.1);
+}
+
+.info-tip::after {
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  bottom: calc(100% + 9px);
+  width: max-content;
+  max-width: 260px;
+  padding: 9px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(7, 14, 13, 0.98);
+  box-shadow: var(--shadow);
+  content: attr(data-tooltip);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  text-align: left;
+  text-transform: none;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+  white-space: normal;
+}
+
+.info-tip::before {
+  position: absolute;
+  z-index: 31;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  width: 9px;
+  height: 9px;
+  border-right: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  background: rgba(7, 14, 13, 0.98);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px) rotate(45deg);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.info-tip.left::after {
+  right: calc(100% + 9px);
+  bottom: 50%;
+  left: auto;
+  transform: translate(4px, 50%);
+}
+
+.info-tip.left::before {
+  right: calc(100% + 4px);
+  bottom: 50%;
+  left: auto;
+  transform: translate(4px, 50%) rotate(-45deg);
+}
+
+.info-tip:hover::after,
+.info-tip:hover::before,
+.info-tip:focus::after,
+.info-tip:focus::before,
+.info-tip:focus-visible::after,
+.info-tip:focus-visible::before {
+  opacity: 1;
+}
+
+.info-tip:hover::after,
+.info-tip:focus::after,
+.info-tip:focus-visible::after {
+  transform: translate(-50%, 0);
+}
+
+.info-tip:hover::before,
+.info-tip:focus::before,
+.info-tip:focus-visible::before {
+  transform: translate(-50%, 0) rotate(45deg);
+}
+
+.info-tip.left:hover::after,
+.info-tip.left:focus::after,
+.info-tip.left:focus-visible::after {
+  transform: translate(0, 50%);
+}
+
+.info-tip.left:hover::before,
+.info-tip.left:focus::before,
+.info-tip.left:focus-visible::before {
+  transform: translate(0, 50%) rotate(-45deg);
 }
 
 .dashboard-grid {
@@ -960,7 +1092,7 @@ meter::-webkit-meter-optimum-value {
   gap: 8px;
 }
 
-.reveal-stats span {
+.reveal-stats > span {
   min-width: 0;
   padding: 8px 10px;
   border: 1px solid var(--border);

@@ -19,6 +19,7 @@ import { AppSidebar, type AppSectionId } from "./components/AppSidebar";
 import { EvidenceStrip } from "./components/EvidenceStrip";
 import { HeldoutPanel } from "./components/HeldoutPanel";
 import { HorizonControl } from "./components/HorizonControl";
+import { InfoTip } from "./components/InfoTip";
 import { IncidentPanel } from "./components/IncidentPanel";
 import { MetricsStrip } from "./components/MetricsStrip";
 import { ReplayTimeline } from "./components/ReplayTimeline";
@@ -250,6 +251,11 @@ export default function App() {
               )}
               {revealLoading ? "Computing" : revealVisible ? "Hide spread" : `Reveal ${horizon}h`}
             </button>
+            <InfoTip
+              label="Reveal spread"
+              text="Unhides the future hotspots for this replay and compares them with the forecast."
+              placement="left"
+            />
           </div>
         </section>
 
