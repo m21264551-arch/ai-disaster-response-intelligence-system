@@ -1,23 +1,40 @@
-import { Crosshair, Route } from "lucide-react";
+import { AlertTriangle, Crosshair, Loader2, Route } from "lucide-react";
 import type { AllocateResponse, RiskCell } from "../lib/types";
 
 interface AllocationPanelProps {
   allocation: AllocateResponse | null;
   selectedCell: RiskCell | null;
+  loading?: boolean;
+  error?: string | null;
 }
 
-export function AllocationPanel({ allocation, selectedCell }: AllocationPanelProps) {
+export function AllocationPanel({ allocation, selectedCell, loading = false, error = null }: AllocationPanelProps) {
   const selectedAllocation = allocation?.allocations.find((item) => item.assigned_h3_id === selectedCell?.h3_id);
+  const heading = loading ? "Optimizing" : `${allocation?.allocations.length ?? 0} assignments`;
 
   return (
     <section className="panel allocation-panel">
       <div className="panel-heading">
         <div>
           <span>Resource Allocation</span>
-          <h2>{allocation?.allocations.length ?? 0} assignments</h2>
+          <h2>{heading}</h2>
         </div>
-        <Crosshair size={22} />
+        {loading ? <Loader2 className="spin" size={22} /> : <Crosshair size={22} />}
       </div>
+
+      {error && (
+        <div className="allocation-state allocation-error">
+          <AlertTriangle size={18} />
+          <span>Allocation unavailable</span>
+        </div>
+      )}
+
+      {loading && !error && (
+        <div className="allocation-state">
+          <Loader2 className="spin" size={18} />
+          <span>Optimizing routes</span>
+        </div>
+      )}
 
       {selectedAllocation && (
         <div className="selected-assignment">
@@ -43,4 +60,3 @@ export function AllocationPanel({ allocation, selectedCell }: AllocationPanelPro
     </section>
   );
 }
-

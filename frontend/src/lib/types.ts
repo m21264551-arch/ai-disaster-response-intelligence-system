@@ -59,6 +59,15 @@ export interface PredictionResponse {
   baseline_version: string;
 }
 
+export interface DashboardBootstrapResponse {
+  replay: ReplayEvent;
+  incidents: Incident[];
+  prediction: PredictionResponse;
+  hotspots: Hotspot[];
+  metrics: ModelMetrics;
+  heldout: HeldoutEvaluation;
+}
+
 export type RevealStatus = "hit" | "miss" | "false_alarm";
 
 export interface RevealCell {

@@ -1,5 +1,6 @@
 import type {
   AllocateResponse,
+  DashboardBootstrapResponse,
   HeldoutEvaluation,
   Horizon,
   Hotspot,
@@ -29,6 +30,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  bootstrap: (
+    bbox: number[],
+    startTime: string,
+    horizons: Horizon[],
+    eventId: string,
+    hotspotStart: string,
+    metricsModelRunId: string,
+  ) =>
+    request<DashboardBootstrapResponse>("/dashboard/bootstrap", {
+      method: "POST",
+      body: JSON.stringify({
+        bbox,
+        start_time: startTime,
+        horizons,
+        event_id: eventId,
+        hotspot_start: hotspotStart,
+        metrics_model_run_id: metricsModelRunId,
+      }),
+    }),
   incidents: () => request<Incident[]>("/incidents/current"),
   replay: (eventId: string) => request<ReplayEvent>(`/replays/${eventId}`),
   metrics: (modelRunId: string) => request<ModelMetrics>(`/metrics/${modelRunId}`),

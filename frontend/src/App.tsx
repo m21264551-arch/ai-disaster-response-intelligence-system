@@ -29,6 +29,8 @@ const MapPanel = lazy(() => import("./components/MapPanel").then((module) => ({ 
 
 const EVENT_ID = "nsw-black-summer-south-coast";
 const DEFAULT_START = "2020-01-05T00:00:00.000Z";
+const HOTSPOT_LOOKBACK_START = "2020-01-04T00:00:00.000Z";
+const METRICS_RUN_ID = "demo-black-summer-v0";
 const DEFAULT_BBOX = [148.7, -37.4, 153.8, -31.1];
 const HORIZONS: Horizon[] = [24, 48, 72];
 
@@ -42,6 +44,8 @@ export default function App() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
   const [allocation, setAllocation] = useState<AllocateResponse | null>(null);
+  const [allocationLoading, setAllocationLoading] = useState(false);
+  const [allocationError, setAllocationError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<ModelMetrics | null>(null);
   const [heldout, setHeldout] = useState<HeldoutEvaluation | null>(null);
   const [reveal, setReveal] = useState<RevealResponse | null>(null);
@@ -56,38 +60,34 @@ export default function App() {
     async function loadDashboard() {
       setStatus("loading");
       setError(null);
+      setPrediction(null);
       setReveal(null);
       setRevealVisible(false);
+      setAllocation(null);
+      setAllocationError(null);
+      setAllocationLoading(false);
 
       try {
-        const [replayData, incidentData, predictionData, hotspotData, metricsData, heldoutData] = await Promise.all([
-          api.replay(EVENT_ID),
-          api.incidents(),
-          api.predict(DEFAULT_BBOX, replayTime, HORIZONS),
-          api.hotspots(DEFAULT_BBOX, "2020-01-04T00:00:00.000Z", replayTime),
-          api.metrics("demo-black-summer-v0"),
-          api.heldout(),
-        ]);
-
-        const allocationData = await api.allocate(
+        const bootstrapData = await api.bootstrap(
           DEFAULT_BBOX,
           replayTime,
-          horizon,
-          predictionData.prediction_run_id,
+          HORIZONS,
+          EVENT_ID,
+          HOTSPOT_LOOKBACK_START,
+          METRICS_RUN_ID,
         );
 
         if (!isActive) {
           return;
         }
 
-        setReplay(replayData);
-        setIncidents(incidentData);
-        setPrediction(predictionData);
-        setHotspots(hotspotData);
-        setMetrics(metricsData);
-        setHeldout(heldoutData);
-        setAllocation(allocationData);
-        setSelectedH3Id((current) => current ?? predictionData.risk_cells[0]?.h3_id ?? null);
+        setReplay(bootstrapData.replay);
+        setIncidents(bootstrapData.incidents);
+        setPrediction(bootstrapData.prediction);
+        setHotspots(bootstrapData.hotspots);
+        setMetrics(bootstrapData.metrics);
+        setHeldout(bootstrapData.heldout);
+        setSelectedH3Id((current) => current ?? bootstrapData.prediction.risk_cells[0]?.h3_id ?? null);
         setStatus("ready");
       } catch (loadError) {
         if (!isActive) {
@@ -103,7 +103,42 @@ export default function App() {
     return () => {
       isActive = false;
     };
-  }, [horizon, replayTime]);
+  }, [replayTime]);
+
+  useEffect(() => {
+    if (!prediction || new Date(prediction.start_time).getTime() !== new Date(replayTime).getTime()) {
+      return;
+    }
+
+    let isActive = true;
+    setAllocation(null);
+    setAllocationError(null);
+    setAllocationLoading(true);
+    setReveal(null);
+    setRevealVisible(false);
+
+    api
+      .allocate(DEFAULT_BBOX, replayTime, horizon, prediction.prediction_run_id)
+      .then((allocationData) => {
+        if (isActive) {
+          setAllocation(allocationData);
+        }
+      })
+      .catch((loadError) => {
+        if (isActive) {
+          setAllocationError(loadError instanceof Error ? loadError.message : "Unable to compute allocation");
+        }
+      })
+      .finally(() => {
+        if (isActive) {
+          setAllocationLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [horizon, prediction, replayTime]);
 
   async function handleRevealToggle() {
     if (revealVisible) {
@@ -241,26 +276,32 @@ export default function App() {
                   Loading replay intelligence
                 </div>
               )}
-              <Suspense
-                fallback={
-                  <div className="loading-overlay">
-                    <Loader2 className="spin" size={22} />
-                    Loading map engine
-                  </div>
-                }
-              >
-                <MapPanel
-                  bbox={replay?.region_bbox ?? DEFAULT_BBOX}
-                  horizon={horizon}
-                  hotspots={hotspots}
-                  riskCells={riskCellsForHorizon}
-                  allocations={allocation?.allocations ?? []}
-                  reveal={reveal}
-                  revealVisible={revealVisible}
-                  selectedH3Id={selectedCell?.h3_id ?? null}
-                  onSelectCell={setSelectedH3Id}
-                />
-              </Suspense>
+              {prediction ? (
+                <Suspense
+                  fallback={
+                    <div className="loading-overlay">
+                      <Loader2 className="spin" size={22} />
+                      Loading map engine
+                    </div>
+                  }
+                >
+                  <MapPanel
+                    bbox={replay?.region_bbox ?? DEFAULT_BBOX}
+                    horizon={horizon}
+                    hotspots={hotspots}
+                    riskCells={riskCellsForHorizon}
+                    allocations={allocation?.allocations ?? []}
+                    reveal={reveal}
+                    revealVisible={revealVisible}
+                    selectedH3Id={selectedCell?.h3_id ?? null}
+                    onSelectCell={setSelectedH3Id}
+                  />
+                </Suspense>
+              ) : (
+                <div className="map-panel map-placeholder" aria-label="Bushfire risk forecast map loading">
+                  <Loader2 className="spin" size={24} />
+                </div>
+              )}
             </div>
 
             <aside
@@ -275,7 +316,12 @@ export default function App() {
                 selectedExposure={selectedExposure}
                 horizon={horizon}
               />
-              <AllocationPanel allocation={allocation} selectedCell={selectedCell ?? null} />
+              <AllocationPanel
+                allocation={allocation}
+                selectedCell={selectedCell ?? null}
+                loading={allocationLoading}
+                error={allocationError}
+              />
             </aside>
           </section>
         )}

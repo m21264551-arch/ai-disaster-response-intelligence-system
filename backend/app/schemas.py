@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Any, Literal
 
@@ -108,6 +110,34 @@ class PredictResponse(BaseModel):
     exposures: list[Exposure]
     model_version: str
     baseline_version: str
+
+
+class DashboardBootstrapRequest(BaseModel):
+    bbox: BBox = Field(min_length=4, max_length=4)
+    start_time: datetime
+    horizons: list[Literal[24, 48, 72]] = Field(default_factory=lambda: [24, 48, 72], min_length=1, max_length=3)
+    event_id: str = "nsw-black-summer-south-coast"
+    hotspot_start: datetime | None = None
+    metrics_model_run_id: str = "demo-black-summer-v0"
+
+    @field_validator("bbox")
+    @classmethod
+    def validate_bbox(cls, bbox: BBox) -> BBox:
+        return PredictRequest.validate_bbox(bbox)
+
+    @field_validator("horizons")
+    @classmethod
+    def validate_horizons(cls, horizons: list[Literal[24, 48, 72]]) -> list[Literal[24, 48, 72]]:
+        return PredictRequest.validate_horizons(horizons)
+
+
+class DashboardBootstrapResponse(BaseModel):
+    replay: ReplayEvent
+    incidents: list[Incident]
+    prediction: PredictResponse
+    hotspots: list[Hotspot]
+    metrics: ModelMetrics
+    heldout: HeldoutEvaluation
 
 
 class RevealRequest(BaseModel):

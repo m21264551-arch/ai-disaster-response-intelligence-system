@@ -28,6 +28,30 @@ def test_predict_returns_risk_cells_and_exposures():
     assert payload["model_version"]
 
 
+def test_dashboard_bootstrap_returns_core_dashboard_payload():
+    response = client.post(
+        "/dashboard/bootstrap",
+        json={
+            "bbox": [148.7, -37.4, 153.8, -31.1],
+            "start_time": datetime(2020, 1, 5, tzinfo=UTC).isoformat(),
+            "horizons": [24, 48, 72],
+            "event_id": "nsw-black-summer-south-coast",
+            "hotspot_start": datetime(2020, 1, 4, tzinfo=UTC).isoformat(),
+            "metrics_model_run_id": "demo-black-summer-v0",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["replay"]["event_id"] == "nsw-black-summer-south-coast"
+    assert payload["incidents"]
+    assert payload["hotspots"]
+    assert len(payload["prediction"]["risk_cells"]) > 50
+    assert {cell["horizon_hours"] for cell in payload["prediction"]["risk_cells"]} == {24, 48, 72}
+    assert payload["metrics"]["metrics"]
+    assert payload["heldout"]["model_run_id"] == "heldout-nsw-bushfire-v1"
+
+
 def test_predict_rejects_invalid_bbox():
     response = client.post(
         "/predict",

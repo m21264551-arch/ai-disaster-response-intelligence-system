@@ -11,6 +11,8 @@ from app.data.fixtures import NSW_BBOX, demo_incidents, replay_event, replay_hot
 from app.schemas import (
     AllocateRequest,
     AllocateResponse,
+    DashboardBootstrapRequest,
+    DashboardBootstrapResponse,
     HeldoutEvaluation,
     Hotspot,
     ModelMetrics,
@@ -27,6 +29,8 @@ from app.services.metrics import demo_metrics, heldout_failure_analysis
 from app.services.reveal import reveal_prediction_vs_actual
 from app.services.risk import BASELINE_VERSION, active_model_version, predict_risk_cells
 
+PREDICTION_HORIZONS = [24, 48, 72]
+
 app = FastAPI(
     title="AI Disaster-Response Intelligence System",
     version="0.1.0",
@@ -35,7 +39,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -94,6 +103,41 @@ def predict(payload: PredictRequest) -> PredictResponse:
     )
 
 
+@app.post("/dashboard/bootstrap", response_model=DashboardBootstrapResponse)
+async def dashboard_bootstrap(payload: DashboardBootstrapRequest) -> DashboardBootstrapResponse:
+    event = replay_event()
+    if payload.event_id != event.event_id:
+        raise HTTPException(status_code=404, detail="Replay event not found")
+
+    risk_cells, exposures = predict_risk_cells(payload.start_time, payload.bbox, list(payload.horizons))
+    prediction = PredictResponse(
+        prediction_run_id=f"pred-{uuid4().hex[:12]}",
+        generated_at=datetime.now(UTC),
+        start_time=payload.start_time,
+        bbox=payload.bbox,
+        risk_cells=risk_cells,
+        exposures=exposures,
+        model_version=active_model_version(),
+        baseline_version=BASELINE_VERSION,
+    )
+    hotspot_start = payload.hotspot_start or event.start_time
+    settings = get_settings()
+    incidents = demo_incidents() if settings.mode == "demo" else await fetch_nsw_rfs_incidents(settings)
+
+    return DashboardBootstrapResponse(
+        replay=event,
+        incidents=incidents,
+        prediction=prediction,
+        hotspots=hotspots(
+            bbox=",".join(str(value) for value in payload.bbox),
+            start=hotspot_start,
+            end=payload.start_time,
+        ),
+        metrics=demo_metrics(payload.metrics_model_run_id),
+        heldout=heldout_failure_analysis(),
+    )
+
+
 @app.post("/reveal", response_model=RevealResponse)
 def reveal(payload: RevealRequest) -> RevealResponse:
     return reveal_prediction_vs_actual(
@@ -111,7 +155,7 @@ def reveal(payload: RevealRequest) -> RevealResponse:
 def allocate(payload: AllocateRequest) -> AllocateResponse:
     start_time = payload.start_time or replay_event().start_time
     bbox = payload.bbox or NSW_BBOX
-    risk_cells, exposures = predict_risk_cells(start_time, bbox, [payload.horizon_hours])
+    risk_cells, exposures = predict_risk_cells(start_time, bbox, PREDICTION_HORIZONS)
     allocations, optimizer = allocate_resources(
         risk_cells=risk_cells,
         exposures=exposures,

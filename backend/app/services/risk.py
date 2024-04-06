@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import math
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 
 from app.data.fixtures import NSW_BBOX, replay_hotspots
 from app.ml.features import baseline_features_for_cell, cell_feature_row, feature_contributions
@@ -113,6 +114,23 @@ def model_risk(
 
 
 def predict_risk_cells(start_time: datetime, bbox: list[float], horizons: list[int]) -> tuple[list[RiskCell], list[Exposure]]:
+    if start_time.tzinfo is None:
+        start_time = start_time.replace(tzinfo=UTC)
+    bbox_key = tuple(round(value, 6) for value in bbox)
+    horizons_key = tuple(horizons)
+    risk_cells, exposures = _predict_risk_cells_cached(start_time.isoformat(), bbox_key, horizons_key)
+    return list(risk_cells), list(exposures)
+
+
+@lru_cache(maxsize=64)
+def _predict_risk_cells_cached(
+    start_time_iso: str,
+    bbox_key: tuple[float, float, float, float],
+    horizons_key: tuple[int, ...],
+) -> tuple[tuple[RiskCell, ...], tuple[Exposure, ...]]:
+    start_time = datetime.fromisoformat(start_time_iso)
+    bbox = list(bbox_key)
+    horizons = list(horizons_key)
     hotspots = recent_hotspots(start_time, bbox)
     cells = candidate_h3_cells(start_time, bbox, horizons)
 
@@ -150,7 +168,7 @@ def predict_risk_cells(start_time: datetime, bbox: list[float], horizons: list[i
 
     used_cells = {cell.h3_id for cell in risk_cells}
     exposures = [exposures_by_cell[cell] for cell in sorted(used_cells)]
-    return risk_cells, exposures
+    return tuple(risk_cells), tuple(exposures)
 
 
 def fallback_model_score(
