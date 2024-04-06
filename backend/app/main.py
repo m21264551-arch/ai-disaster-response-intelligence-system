@@ -21,6 +21,7 @@ from app.schemas import (
     ReplayEvent,
 )
 from app.services.allocation import allocate_resources
+from app.services.land_mask import point_inside_land
 from app.services.live_feeds import fetch_nsw_rfs_incidents
 from app.services.metrics import demo_metrics, heldout_failure_analysis
 from app.services.reveal import reveal_prediction_vs_actual
@@ -67,7 +68,15 @@ def hotspots(
     if end:
         items = [item for item in items if item.observed_at <= end]
     west, south, east, north = parsed_bbox
-    return [item for item in items if west <= item.lon <= east and south <= item.lat <= north]
+    return [
+        item
+        for item in items
+        if (
+            west <= item.lon <= east
+            and south <= item.lat <= north
+            and point_inside_land(item.lat, item.lon, parsed_bbox)
+        )
+    ]
 
 
 @app.post("/predict", response_model=PredictResponse)

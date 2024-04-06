@@ -7,6 +7,7 @@ import h3
 from app.data.fixtures import replay_hotspots
 from app.schemas import Hotspot, RevealCell, RevealResponse, RevealSummary
 from app.services.geo import cell_from_lat_lon, centroid_from_h3, in_bbox, polygon_geometry_from_h3
+from app.services.land_mask import h3_cell_inside_land, point_inside_land
 from app.services.risk import predict_risk_cells
 
 
@@ -86,11 +87,18 @@ def reveal_prediction_vs_actual(
 
 
 def future_hotspots(*, start_time: datetime, horizon_end: datetime, bbox: list[float]) -> list[Hotspot]:
-    return [
-        hotspot
-        for hotspot in replay_hotspots()
-        if start_time < hotspot.observed_at <= horizon_end and in_bbox(hotspot.lat, hotspot.lon, bbox)
-    ]
+    hotspots: list[Hotspot] = []
+    for hotspot in replay_hotspots():
+        if not start_time < hotspot.observed_at <= horizon_end:
+            continue
+        if not in_bbox(hotspot.lat, hotspot.lon, bbox):
+            continue
+        if not point_inside_land(hotspot.lat, hotspot.lon, bbox):
+            continue
+        if not h3_cell_inside_land(cell_from_lat_lon(hotspot.lat, hotspot.lon, resolution=5), bbox):
+            continue
+        hotspots.append(hotspot)
+    return hotspots
 
 
 def _cells_for_status(

@@ -15,6 +15,7 @@ from app.services.geo import (
     in_bbox,
     polygon_geometry_from_h3,
 )
+from app.services.land_mask import h3_cell_inside_land, point_inside_land
 
 MODEL_VERSION = "hist-gradient-bushfire-risk-v1"
 FALLBACK_MODEL_VERSION = "bushfire-risk-deterministic-demo-v0.3"
@@ -35,7 +36,11 @@ def recent_hotspots(start_time: datetime, bbox: list[float], lookback_hours: int
     candidates = [
         hotspot
         for hotspot in replay_hotspots()
-        if window_start <= hotspot.observed_at <= start_time and in_bbox(hotspot.lat, hotspot.lon, bbox)
+        if (
+            window_start <= hotspot.observed_at <= start_time
+            and in_bbox(hotspot.lat, hotspot.lon, bbox)
+            and point_inside_land(hotspot.lat, hotspot.lon, bbox)
+        )
     ]
     if candidates:
         return candidates
@@ -54,7 +59,10 @@ def candidate_h3_cells(start_time: datetime, bbox: list[float], horizons: list[i
     return {
         cell
         for cell in cells
-        if in_bbox(centroid_from_h3(cell)["lat"], centroid_from_h3(cell)["lon"], bbox)
+        if (
+            in_bbox(centroid_from_h3(cell)["lat"], centroid_from_h3(cell)["lon"], bbox)
+            and h3_cell_inside_land(cell, bbox)
+        )
     }
 
 
