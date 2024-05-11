@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, BarChart3, Eye, EyeOff, Flame, Loader2, RadioTower } from "lucide-react";
 import { api } from "./lib/api";
 import type {
   AllocateResponse,
-  Exposure,
+  DashboardBootstrapResponse,
+  DashboardFrameResponse,
   HeldoutEvaluation,
   Horizon,
   Hotspot,
@@ -12,7 +13,6 @@ import type {
   PredictionResponse,
   RevealResponse,
   ReplayEvent,
-  RiskCell,
 } from "./lib/types";
 import { AllocationPanel } from "./components/AllocationPanel";
 import { AppSidebar, type AppSectionId } from "./components/AppSidebar";
@@ -22,7 +22,7 @@ import { HorizonControl } from "./components/HorizonControl";
 import { InfoTip } from "./components/InfoTip";
 import { IncidentPanel } from "./components/IncidentPanel";
 import { MetricsStrip } from "./components/MetricsStrip";
-import { ReplayTimeline } from "./components/ReplayTimeline";
+import { REPLAY_STEPS, ReplayTimeline } from "./components/ReplayTimeline";
 import { TopBar } from "./components/TopBar";
 import { timeLabel } from "./lib/format";
 
@@ -34,6 +34,33 @@ const HOTSPOT_LOOKBACK_START = "2020-01-04T00:00:00.000Z";
 const METRICS_RUN_ID = "demo-black-summer-v0";
 const DEFAULT_BBOX = [148.7, -37.4, 153.8, -31.1];
 const HORIZONS: Horizon[] = [24, 48, 72];
+let dashboardBootstrapPromise: Promise<DashboardBootstrapResponse> | null = null;
+
+function normalizeReplayTime(value: string) {
+  return new Date(value).toISOString();
+}
+
+function allocationCacheKey(startTime: string, horizon: Horizon) {
+  return `${normalizeReplayTime(startTime)}:${horizon}`;
+}
+
+function orderedReplaySteps(anchorTime: string) {
+  const activeIndex = Math.max(0, REPLAY_STEPS.findIndex((step) => normalizeReplayTime(step) === normalizeReplayTime(anchorTime)));
+  return Array.from({ length: REPLAY_STEPS.length - 1 }, (_value, index) => {
+    const nextIndex = (activeIndex + index + 1) % REPLAY_STEPS.length;
+    return normalizeReplayTime(REPLAY_STEPS[nextIndex]);
+  });
+}
+
+function fetchDashboardBootstrap() {
+  dashboardBootstrapPromise ??= api
+    .bootstrap(DEFAULT_BBOX, DEFAULT_START, HORIZONS, EVENT_ID, HOTSPOT_LOOKBACK_START, METRICS_RUN_ID)
+    .catch((loadError) => {
+      dashboardBootstrapPromise = null;
+      throw loadError;
+    });
+  return dashboardBootstrapPromise;
+}
 
 export default function App() {
   const [horizon, setHorizon] = useState<Horizon>(24);
@@ -44,6 +71,8 @@ export default function App() {
   const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
+  const [frameLoading, setFrameLoading] = useState(false);
+  const [readyFrameKeys, setReadyFrameKeys] = useState<Set<string>>(() => new Set());
   const [allocation, setAllocation] = useState<AllocateResponse | null>(null);
   const [allocationLoading, setAllocationLoading] = useState(false);
   const [allocationError, setAllocationError] = useState<string | null>(null);
@@ -54,12 +83,194 @@ export default function App() {
   const [revealLoading, setRevealLoading] = useState(false);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
+  const frameCacheRef = useRef(new Map<string, DashboardFrameResponse>());
+  const frameRequestsRef = useRef(new Map<string, Promise<DashboardFrameResponse>>());
+  const frameRequestIdRef = useRef(0);
+  const allocationCacheRef = useRef(new Map<string, AllocateResponse>());
+  const allocationRequestsRef = useRef(new Map<string, Promise<AllocateResponse>>());
+  const horizonRef = useRef<Horizon>(horizon);
+
+  useEffect(() => {
+    horizonRef.current = horizon;
+  }, [horizon]);
+
+  const markFrameReady = useCallback((startTime: string) => {
+    const key = normalizeReplayTime(startTime);
+    setReadyFrameKeys((current) => {
+      if (current.has(key)) {
+        return current;
+      }
+      const next = new Set(current);
+      next.add(key);
+      return next;
+    });
+  }, []);
+
+  const cacheReplayFrame = useCallback(
+    (startTime: string, frame: DashboardFrameResponse) => {
+      const key = normalizeReplayTime(startTime);
+      frameCacheRef.current.set(key, frame);
+      markFrameReady(key);
+    },
+    [markFrameReady],
+  );
+
+  const fetchReplayFrame = useCallback(
+    (startTime: string) => {
+      const key = normalizeReplayTime(startTime);
+      const cached = frameCacheRef.current.get(key);
+      if (cached) {
+        return Promise.resolve(cached);
+      }
+
+      const existingRequest = frameRequestsRef.current.get(key);
+      if (existingRequest) {
+        return existingRequest;
+      }
+
+      const request = api
+        .frame(DEFAULT_BBOX, key, HORIZONS, HOTSPOT_LOOKBACK_START)
+        .then((frameData) => {
+          cacheReplayFrame(key, frameData);
+          return frameData;
+        })
+        .finally(() => {
+          frameRequestsRef.current.delete(key);
+        });
+
+      frameRequestsRef.current.set(key, request);
+      return request;
+    },
+    [cacheReplayFrame],
+  );
+
+  const fetchAllocation = useCallback((startTime: string, allocationHorizon: Horizon, predictionRunId: string) => {
+    const key = allocationCacheKey(startTime, allocationHorizon);
+    const cached = allocationCacheRef.current.get(key);
+    if (cached) {
+      return Promise.resolve(cached);
+    }
+
+    const existingRequest = allocationRequestsRef.current.get(key);
+    if (existingRequest) {
+      return existingRequest;
+    }
+
+    const request = api
+      .allocate(DEFAULT_BBOX, normalizeReplayTime(startTime), allocationHorizon, predictionRunId)
+      .then((allocationData) => {
+        allocationCacheRef.current.set(key, allocationData);
+        return allocationData;
+      })
+      .finally(() => {
+        allocationRequestsRef.current.delete(key);
+      });
+
+    allocationRequestsRef.current.set(key, request);
+    return request;
+  }, []);
+
+  const prefetchReplayStep = useCallback(
+    (startTime: string) => {
+      const key = normalizeReplayTime(startTime);
+      void fetchReplayFrame(key)
+        .then((frameData) => fetchAllocation(key, horizonRef.current, frameData.prediction.prediction_run_id))
+        .catch(() => undefined);
+    },
+    [fetchAllocation, fetchReplayFrame],
+  );
+
+  const warmReplayFrames = useCallback(
+    async (anchorTime: string) => {
+      for (const step of orderedReplaySteps(anchorTime)) {
+        try {
+          const frameData = await fetchReplayFrame(step);
+          void fetchAllocation(step, horizonRef.current, frameData.prediction.prediction_run_id).catch(() => undefined);
+        } catch {
+          return;
+        }
+      }
+    },
+    [fetchAllocation, fetchReplayFrame],
+  );
+
+  const applyReplayFrame = useCallback(
+    (startTime: string, frame: DashboardFrameResponse) => {
+      const key = normalizeReplayTime(startTime);
+      const cachedAllocation = allocationCacheRef.current.get(allocationCacheKey(key, horizonRef.current)) ?? null;
+
+      cacheReplayFrame(key, frame);
+      setReplayTime(key);
+      setPrediction(frame.prediction);
+      setHotspots(frame.hotspots);
+      setSelectedH3Id((current) => {
+        const availableCells = new Set(frame.prediction.risk_cells.map((cell) => cell.h3_id));
+        return current && availableCells.has(current) ? current : frame.prediction.risk_cells[0]?.h3_id ?? null;
+      });
+      setAllocation(cachedAllocation);
+      setAllocationError(null);
+      setAllocationLoading(!cachedAllocation);
+      setReveal(null);
+      setRevealVisible(false);
+      setRevealLoading(false);
+      setFrameLoading(false);
+      setStatus("ready");
+    },
+    [cacheReplayFrame],
+  );
+
+  const requestReplayFrame = useCallback(
+    (startTime: string) => {
+      const key = normalizeReplayTime(startTime);
+      frameRequestIdRef.current += 1;
+      const requestId = frameRequestIdRef.current;
+      const cached = frameCacheRef.current.get(key);
+
+      setReplayTime(key);
+      setError(null);
+
+      if (cached) {
+        applyReplayFrame(key, cached);
+        return;
+      }
+
+      setFrameLoading(true);
+      setReveal(null);
+      setRevealVisible(false);
+      setRevealLoading(false);
+
+      fetchReplayFrame(key)
+        .then((frameData) => {
+          if (frameRequestIdRef.current === requestId) {
+            applyReplayFrame(key, frameData);
+          }
+        })
+        .catch((loadError) => {
+          if (frameRequestIdRef.current === requestId) {
+            setError(loadError instanceof Error ? loadError.message : "Unable to load replay frame");
+            setFrameLoading(false);
+            setStatus("error");
+          }
+        });
+    },
+    [applyReplayFrame, fetchReplayFrame],
+  );
+
+  const handleReplayTimeChange = useCallback(
+    (startTime: string) => {
+      const key = normalizeReplayTime(startTime);
+      requestReplayFrame(key);
+      void warmReplayFrames(key);
+    },
+    [requestReplayFrame, warmReplayFrames],
+  );
 
   useEffect(() => {
     let isActive = true;
 
     async function loadDashboard() {
       setStatus("loading");
+      setFrameLoading(false);
       setError(null);
       setPrediction(null);
       setReveal(null);
@@ -69,27 +280,24 @@ export default function App() {
       setAllocationLoading(false);
 
       try {
-        const bootstrapData = await api.bootstrap(
-          DEFAULT_BBOX,
-          replayTime,
-          HORIZONS,
-          EVENT_ID,
-          HOTSPOT_LOOKBACK_START,
-          METRICS_RUN_ID,
-        );
+        const bootstrapData = await fetchDashboardBootstrap();
 
         if (!isActive) {
           return;
         }
 
+        const initialFrame = {
+          prediction: bootstrapData.prediction,
+          hotspots: bootstrapData.hotspots,
+        };
+        const initialTime = normalizeReplayTime(bootstrapData.prediction.start_time);
+
         setReplay(bootstrapData.replay);
         setIncidents(bootstrapData.incidents);
-        setPrediction(bootstrapData.prediction);
-        setHotspots(bootstrapData.hotspots);
         setMetrics(bootstrapData.metrics);
         setHeldout(bootstrapData.heldout);
-        setSelectedH3Id((current) => current ?? bootstrapData.prediction.risk_cells[0]?.h3_id ?? null);
-        setStatus("ready");
+        applyReplayFrame(initialTime, initialFrame);
+        void warmReplayFrames(initialTime);
       } catch (loadError) {
         if (!isActive) {
           return;
@@ -104,22 +312,30 @@ export default function App() {
     return () => {
       isActive = false;
     };
-  }, [replayTime]);
+  }, [applyReplayFrame, warmReplayFrames]);
 
   useEffect(() => {
-    if (!prediction || new Date(prediction.start_time).getTime() !== new Date(replayTime).getTime()) {
+    if (!prediction || normalizeReplayTime(prediction.start_time) !== normalizeReplayTime(replayTime)) {
       return;
     }
 
     let isActive = true;
-    setAllocation(null);
+    const key = allocationCacheKey(replayTime, horizon);
+    const cached = allocationCacheRef.current.get(key);
+    if (cached) {
+      setAllocation(cached);
+      setAllocationError(null);
+      setAllocationLoading(false);
+      return;
+    }
+
     setAllocationError(null);
+    setAllocation(null);
     setAllocationLoading(true);
     setReveal(null);
     setRevealVisible(false);
 
-    api
-      .allocate(DEFAULT_BBOX, replayTime, horizon, prediction.prediction_run_id)
+    fetchAllocation(replayTime, horizon, prediction.prediction_run_id)
       .then((allocationData) => {
         if (isActive) {
           setAllocation(allocationData);
@@ -139,7 +355,7 @@ export default function App() {
     return () => {
       isActive = false;
     };
-  }, [horizon, prediction, replayTime]);
+  }, [fetchAllocation, horizon, prediction, replayTime]);
 
   async function handleRevealToggle() {
     if (revealVisible) {
@@ -276,10 +492,10 @@ export default function App() {
             tabIndex={-1}
           >
             <div className="map-region">
-              {status === "loading" && (
+              {(status === "loading" || frameLoading) && (
                 <div className="loading-overlay">
                   <Loader2 className="spin" size={22} />
-                  Loading replay intelligence
+                  {status === "loading" ? "Loading replay intelligence" : "Loading replay frame"}
                 </div>
               )}
               {prediction ? (
@@ -338,7 +554,10 @@ export default function App() {
             active={activeSection === "pipelines"}
             replay={replay}
             replayTime={replayTime}
-            onReplayTimeChange={setReplayTime}
+            onReplayTimeChange={handleReplayTimeChange}
+            onPrefetchStep={prefetchReplayStep}
+            readySteps={readyFrameKeys}
+            frameLoading={frameLoading}
             observedHotspots={hotspots.length}
             horizon={horizon}
             reveal={reveal}

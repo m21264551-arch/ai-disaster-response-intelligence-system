@@ -249,16 +249,37 @@ export function MapPanel({
     (map.getSource("reveal-cells") as GeoJSONSource | undefined)?.setData(revealData);
     (map.getSource("future-hotspots") as GeoJSONSource | undefined)?.setData(futureHotspotData);
     map.setFilter("selected-cell-outline", ["==", ["get", "h3_id"], selectedH3Id ?? ""]);
+  }, [allocationData, futureHotspotData, hotspotData, loaded, revealData, riskData, selectedH3Id]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loaded) {
+      return;
+    }
+
+    if (!map.isStyleLoaded() || !map.getLayer("selected-cell-outline")) {
+      return;
+    }
 
     if (riskCells.length > 0) {
-      const lats = riskCells.map((cell) => cell.centroid.lat);
-      const lons = riskCells.map((cell) => cell.centroid.lon);
+      let minLat = Number.POSITIVE_INFINITY;
+      let minLon = Number.POSITIVE_INFINITY;
+      let maxLat = Number.NEGATIVE_INFINITY;
+      let maxLon = Number.NEGATIVE_INFINITY;
+
+      for (const cell of riskCells) {
+        minLat = Math.min(minLat, cell.centroid.lat);
+        minLon = Math.min(minLon, cell.centroid.lon);
+        maxLat = Math.max(maxLat, cell.centroid.lat);
+        maxLon = Math.max(maxLon, cell.centroid.lon);
+      }
+
       map.fitBounds(
         [
-          [Math.min(...lons) - 0.18, Math.min(...lats) - 0.18],
-          [Math.max(...lons) + 0.18, Math.max(...lats) + 0.18],
+          [minLon - 0.18, minLat - 0.18],
+          [maxLon + 0.18, maxLat + 0.18],
         ],
-        { padding: 58, duration: 550 },
+        { padding: 58, duration: 320 },
       );
     } else if (bbox.length === 4) {
       map.fitBounds(
@@ -266,10 +287,10 @@ export function MapPanel({
           [bbox[0], bbox[1]],
           [bbox[2], bbox[3]],
         ],
-        { padding: 56, duration: 550 },
+        { padding: 56, duration: 320 },
       );
     }
-  }, [allocationData, bbox, futureHotspotData, hotspotData, loaded, revealData, riskCells, riskData, selectedH3Id]);
+  }, [bbox, loaded, riskCells]);
 
   const topRisk = riskCells[0]?.risk_score ?? 0;
 

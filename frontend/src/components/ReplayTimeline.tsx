@@ -12,13 +12,16 @@ interface ReplayTimelineProps {
   reveal: RevealResponse | null;
   revealVisible: boolean;
   revealLoading: boolean;
+  frameLoading?: boolean;
+  readySteps?: Set<string>;
   sectionId?: string;
   active?: boolean;
   onReplayTimeChange: (value: string) => void;
+  onPrefetchStep?: (value: string) => void;
   onRevealToggle: () => void;
 }
 
-const STEPS = [
+export const REPLAY_STEPS = [
   "2020-01-04T00:00:00.000Z",
   "2020-01-04T12:00:00.000Z",
   "2020-01-05T00:00:00.000Z",
@@ -28,6 +31,10 @@ const STEPS = [
   "2020-01-07T00:00:00.000Z",
 ];
 
+function normalizeReplayTime(value: string) {
+  return new Date(value).toISOString();
+}
+
 export function ReplayTimeline({
   replay,
   replayTime,
@@ -36,31 +43,48 @@ export function ReplayTimeline({
   reveal,
   revealVisible,
   revealLoading,
+  frameLoading = false,
+  readySteps,
   sectionId,
   active = false,
   onReplayTimeChange,
+  onPrefetchStep,
   onRevealToggle,
 }: ReplayTimelineProps) {
   const [playing, setPlaying] = useState(false);
-  const activeIndex = Math.max(0, STEPS.findIndex((step) => step === replayTime));
-  const progress = useMemo(() => (activeIndex / (STEPS.length - 1)) * 100, [activeIndex]);
+  const activeIndex = Math.max(0, REPLAY_STEPS.findIndex((step) => normalizeReplayTime(step) === normalizeReplayTime(replayTime)));
+  const nextIndex = activeIndex >= REPLAY_STEPS.length - 1 ? 0 : activeIndex + 1;
+  const nextStep = REPLAY_STEPS[nextIndex];
+  const nextStepReady = readySteps?.has(normalizeReplayTime(nextStep)) ?? false;
+  const progress = useMemo(() => (activeIndex / (REPLAY_STEPS.length - 1)) * 100, [activeIndex]);
+  const timelineStatus = frameLoading
+    ? "Loading selected replay frame"
+    : playing && !nextStepReady
+      ? "Warming next replay frame"
+      : `${observedHotspots} observed hotspots visible`;
 
   useEffect(() => {
     if (!playing) {
       return;
     }
 
-    const timer = window.setInterval(() => {
-      const nextIndex = activeIndex >= STEPS.length - 1 ? 0 : activeIndex + 1;
-      onReplayTimeChange(STEPS[nextIndex]);
-    }, 1600);
+    if (!nextStepReady) {
+      onPrefetchStep?.(nextStep);
+    }
 
-    return () => window.clearInterval(timer);
-  }, [activeIndex, onReplayTimeChange, playing]);
+    const timer = window.setTimeout(() => {
+      if (nextStepReady) {
+        onReplayTimeChange(nextStep);
+        return;
+      }
+      onPrefetchStep?.(nextStep);
+    }, nextStepReady ? 1200 : 300);
+
+    return () => window.clearTimeout(timer);
+  }, [nextStep, nextStepReady, onPrefetchStep, onReplayTimeChange, playing]);
 
   function stepForward() {
-    const nextIndex = activeIndex >= STEPS.length - 1 ? 0 : activeIndex + 1;
-    onReplayTimeChange(STEPS[nextIndex]);
+    onReplayTimeChange(nextStep);
   }
 
   return (
@@ -100,24 +124,37 @@ export function ReplayTimeline({
         >
           <SkipForward size={18} />
         </button>
-        <div className="timeline-track" role="slider" aria-valuemin={0} aria-valuemax={STEPS.length - 1} aria-valuenow={activeIndex}>
+        <div className="timeline-track" role="slider" aria-valuemin={0} aria-valuemax={REPLAY_STEPS.length - 1} aria-valuenow={activeIndex}>
           <div className="timeline-progress" style={{ width: `${progress}%` }} />
-          {STEPS.map((step, index) => (
-            <button
-              type="button"
-              key={step}
-              className={index === activeIndex ? "timeline-dot active" : "timeline-dot"}
-              style={{ left: `${(index / (STEPS.length - 1)) * 100}%` }}
-              onClick={() => onReplayTimeChange(step)}
-              aria-label={`Set replay to ${timeLabel(step)}`}
-              aria-current={index === activeIndex ? "step" : undefined}
-              data-testid={`replay-step-${index}`}
-            />
-          ))}
+          {REPLAY_STEPS.map((step, index) => {
+            const stepReady = readySteps?.has(normalizeReplayTime(step)) ?? false;
+            const isActive = index === activeIndex;
+            const className = [
+              "timeline-dot",
+              stepReady ? "ready" : "warming",
+              isActive ? "active" : "",
+              isActive && frameLoading ? "loading" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+
+            return (
+              <button
+                type="button"
+                key={step}
+                className={className}
+                style={{ left: `${(index / (REPLAY_STEPS.length - 1)) * 100}%` }}
+                onClick={() => onReplayTimeChange(step)}
+                aria-label={`Set replay to ${timeLabel(step)}`}
+                aria-current={isActive ? "step" : undefined}
+                data-testid={`replay-step-${index}`}
+              />
+            );
+          })}
         </div>
         <div className="timeline-meta">
           <strong>{timeLabel(replayTime)}</strong>
-          <span>{observedHotspots} observed hotspots visible</span>
+          <span>{timelineStatus}</span>
         </div>
       </div>
 

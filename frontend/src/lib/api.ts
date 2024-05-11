@@ -1,6 +1,7 @@
 import type {
   AllocateResponse,
   DashboardBootstrapResponse,
+  DashboardFrameResponse,
   HeldoutEvaluation,
   Horizon,
   Hotspot,
@@ -47,6 +48,16 @@ export const api = {
         event_id: eventId,
         hotspot_start: hotspotStart,
         metrics_model_run_id: metricsModelRunId,
+      }),
+    }),
+  frame: (bbox: number[], startTime: string, horizons: Horizon[], hotspotStart: string) =>
+    request<DashboardFrameResponse>("/dashboard/frame", {
+      method: "POST",
+      body: JSON.stringify({
+        bbox,
+        start_time: startTime,
+        horizons,
+        hotspot_start: hotspotStart,
       }),
     }),
   incidents: () => request<Incident[]>("/incidents/current"),
