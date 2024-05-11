@@ -140,6 +140,28 @@ class DashboardBootstrapResponse(BaseModel):
     heldout: HeldoutEvaluation
 
 
+class DashboardFrameRequest(BaseModel):
+    bbox: BBox = Field(min_length=4, max_length=4)
+    start_time: datetime
+    horizons: list[Literal[24, 48, 72]] = Field(default_factory=lambda: [24, 48, 72], min_length=1, max_length=3)
+    hotspot_start: datetime | None = None
+
+    @field_validator("bbox")
+    @classmethod
+    def validate_bbox(cls, bbox: BBox) -> BBox:
+        return PredictRequest.validate_bbox(bbox)
+
+    @field_validator("horizons")
+    @classmethod
+    def validate_horizons(cls, horizons: list[Literal[24, 48, 72]]) -> list[Literal[24, 48, 72]]:
+        return PredictRequest.validate_horizons(horizons)
+
+
+class DashboardFrameResponse(BaseModel):
+    prediction: PredictResponse
+    hotspots: list[Hotspot]
+
+
 class RevealRequest(BaseModel):
     bbox: BBox = Field(min_length=4, max_length=4)
     start_time: datetime

@@ -52,6 +52,26 @@ def test_dashboard_bootstrap_returns_core_dashboard_payload():
     assert payload["heldout"]["model_run_id"] == "heldout-nsw-bushfire-v1"
 
 
+def test_dashboard_frame_returns_only_replay_frame_payload():
+    response = client.post(
+        "/dashboard/frame",
+        json={
+            "bbox": [148.7, -37.4, 153.8, -31.1],
+            "start_time": datetime(2020, 1, 6, tzinfo=UTC).isoformat(),
+            "horizons": [24, 48, 72],
+            "hotspot_start": datetime(2020, 1, 4, tzinfo=UTC).isoformat(),
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["prediction"]["risk_cells"]) > 50
+    assert {cell["horizon_hours"] for cell in payload["prediction"]["risk_cells"]} == {24, 48, 72}
+    assert payload["hotspots"]
+    assert "metrics" not in payload
+    assert "heldout" not in payload
+
+
 def test_predict_rejects_invalid_bbox():
     response = client.post(
         "/predict",

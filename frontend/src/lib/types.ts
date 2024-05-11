@@ -68,6 +68,11 @@ export interface DashboardBootstrapResponse {
   heldout: HeldoutEvaluation;
 }
 
+export interface DashboardFrameResponse {
+  prediction: PredictionResponse;
+  hotspots: Hotspot[];
+}
+
 export type RevealStatus = "hit" | "miss" | "false_alarm";
 
 export interface RevealCell {

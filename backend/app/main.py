@@ -13,6 +13,8 @@ from app.schemas import (
     AllocateResponse,
     DashboardBootstrapRequest,
     DashboardBootstrapResponse,
+    DashboardFrameRequest,
+    DashboardFrameResponse,
     HeldoutEvaluation,
     Hotspot,
     ModelMetrics,
@@ -90,17 +92,7 @@ def hotspots(
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(payload: PredictRequest) -> PredictResponse:
-    risk_cells, exposures = predict_risk_cells(payload.start_time, payload.bbox, list(payload.horizons))
-    return PredictResponse(
-        prediction_run_id=f"pred-{uuid4().hex[:12]}",
-        generated_at=datetime.now(UTC),
-        start_time=payload.start_time,
-        bbox=payload.bbox,
-        risk_cells=risk_cells,
-        exposures=exposures,
-        model_version=active_model_version(),
-        baseline_version=BASELINE_VERSION,
-    )
+    return _build_prediction(payload.start_time, payload.bbox, list(payload.horizons))
 
 
 @app.post("/dashboard/bootstrap", response_model=DashboardBootstrapResponse)
@@ -109,17 +101,7 @@ async def dashboard_bootstrap(payload: DashboardBootstrapRequest) -> DashboardBo
     if payload.event_id != event.event_id:
         raise HTTPException(status_code=404, detail="Replay event not found")
 
-    risk_cells, exposures = predict_risk_cells(payload.start_time, payload.bbox, list(payload.horizons))
-    prediction = PredictResponse(
-        prediction_run_id=f"pred-{uuid4().hex[:12]}",
-        generated_at=datetime.now(UTC),
-        start_time=payload.start_time,
-        bbox=payload.bbox,
-        risk_cells=risk_cells,
-        exposures=exposures,
-        model_version=active_model_version(),
-        baseline_version=BASELINE_VERSION,
-    )
+    prediction = _build_prediction(payload.start_time, payload.bbox, list(payload.horizons))
     hotspot_start = payload.hotspot_start or event.start_time
     settings = get_settings()
     incidents = demo_incidents() if settings.mode == "demo" else await fetch_nsw_rfs_incidents(settings)
@@ -135,6 +117,22 @@ async def dashboard_bootstrap(payload: DashboardBootstrapRequest) -> DashboardBo
         ),
         metrics=demo_metrics(payload.metrics_model_run_id),
         heldout=heldout_failure_analysis(),
+    )
+
+
+@app.post("/dashboard/frame", response_model=DashboardFrameResponse)
+def dashboard_frame(payload: DashboardFrameRequest) -> DashboardFrameResponse:
+    prediction = _build_prediction(payload.start_time, payload.bbox, list(payload.horizons))
+    event = replay_event()
+    hotspot_start = payload.hotspot_start or event.start_time
+
+    return DashboardFrameResponse(
+        prediction=prediction,
+        hotspots=hotspots(
+            bbox=",".join(str(value) for value in payload.bbox),
+            start=hotspot_start,
+            end=payload.start_time,
+        ),
     )
 
 
@@ -201,3 +199,17 @@ def _parse_bbox(bbox: str) -> list[float]:
     if west >= east or south >= north:
         raise HTTPException(status_code=400, detail="bbox must be west,south,east,north")
     return values
+
+
+def _build_prediction(start_time: datetime, bbox: list[float], horizons: list[int]) -> PredictResponse:
+    risk_cells, exposures = predict_risk_cells(start_time, bbox, horizons)
+    return PredictResponse(
+        prediction_run_id=f"pred-{uuid4().hex[:12]}",
+        generated_at=datetime.now(UTC),
+        start_time=start_time,
+        bbox=bbox,
+        risk_cells=risk_cells,
+        exposures=exposures,
+        model_version=active_model_version(),
+        baseline_version=BASELINE_VERSION,
+    )

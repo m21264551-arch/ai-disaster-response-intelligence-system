@@ -1020,10 +1020,31 @@ meter::-webkit-meter-optimum-value {
   transform: translateX(-50%);
 }
 
+.timeline-dot.ready {
+  border-color: rgba(47, 228, 204, 0.38);
+  background: #8aa7a1;
+}
+
+.timeline-dot.warming {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #42524f;
+}
+
 .timeline-dot.active {
   border-color: rgba(47, 228, 204, 0.5);
   background: var(--teal);
   box-shadow: 0 0 0 6px rgba(47, 228, 204, 0.12);
+}
+
+.timeline-dot.loading {
+  animation: timelinePulse 0.9s ease-in-out infinite;
+}
+
+@keyframes timelinePulse {
+  50% {
+    box-shadow: 0 0 0 9px rgba(47, 228, 204, 0.08);
+    opacity: 0.72;
+  }
 }
 
 .timeline-meta strong,
