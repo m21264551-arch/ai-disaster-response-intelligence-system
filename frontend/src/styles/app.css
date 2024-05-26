@@ -101,6 +101,7 @@ button:focus-visible {
     color 160ms ease,
     border-color 160ms ease,
     transform 160ms ease;
+  overflow: hidden;
 }
 
 .nav-item:hover,
@@ -109,6 +110,11 @@ button:focus-visible {
   color: var(--text);
   border-color: var(--border-strong);
   background: var(--surface-soft);
+}
+
+.nav-item:hover,
+.nav-item:focus-visible {
+  overflow: visible;
 }
 
 .nav-item.active {
@@ -430,6 +436,7 @@ button:focus-visible {
   color: var(--faint);
   background: rgba(255, 255, 255, 0.045);
   cursor: help;
+  overflow: hidden;
 }
 
 .info-tip:hover,
@@ -438,6 +445,7 @@ button:focus-visible {
   color: var(--teal);
   border-color: rgba(47, 228, 204, 0.44);
   background: rgba(47, 228, 204, 0.1);
+  overflow: visible;
 }
 
 .info-tip::after {
@@ -446,7 +454,7 @@ button:focus-visible {
   left: 50%;
   bottom: calc(100% + 9px);
   width: max-content;
-  max-width: 260px;
+  max-width: min(260px, calc(100vw - 32px));
   padding: 9px 10px;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
@@ -465,6 +473,7 @@ button:focus-visible {
   transition:
     opacity 140ms ease,
     transform 140ms ease;
+  overflow-wrap: anywhere;
   white-space: normal;
 }
 
@@ -987,6 +996,7 @@ meter::-webkit-meter-optimum-value {
 .timeline-track {
   position: relative;
   height: 32px;
+  margin-inline: 9px;
 }
 
 .timeline-track::before,
@@ -1419,6 +1429,10 @@ meter::-webkit-meter-optimum-value {
     padding: 14px;
   }
 
+  .section-anchor {
+    scroll-margin-top: 78px;
+  }
+
   .top-bar,
   .command-row,
   .disclaimer {
@@ -1500,6 +1514,43 @@ meter::-webkit-meter-optimum-value {
 
   .timeline-track {
     min-height: 36px;
+  }
+
+  .info-tip::after {
+    position: fixed;
+    top: 76px;
+    right: 16px;
+    bottom: auto;
+    left: 16px;
+    width: auto;
+    max-width: none;
+    transform: translateY(4px);
+  }
+
+  .info-tip::before {
+    display: none;
+  }
+
+  .info-tip.left::after,
+  .info-tip.left:hover::after,
+  .info-tip.left:focus::after,
+  .info-tip.left:focus-visible::after {
+    top: 76px;
+    right: 16px;
+    bottom: auto;
+    left: 16px;
+    width: auto;
+    max-width: none;
+  }
+
+  .info-tip.left::after,
+  .info-tip.left:hover::after,
+  .info-tip.left:focus::after,
+  .info-tip.left:focus-visible::after,
+  .info-tip:hover::after,
+  .info-tip:focus::after,
+  .info-tip:focus-visible::after {
+    transform: translateY(0);
   }
 
   .metric-grid,

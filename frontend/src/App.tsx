@@ -34,6 +34,8 @@ const HOTSPOT_LOOKBACK_START = "2020-01-04T00:00:00.000Z";
 const METRICS_RUN_ID = "demo-black-summer-v0";
 const DEFAULT_BBOX = [148.7, -37.4, 153.8, -31.1];
 const HORIZONS: Horizon[] = [24, 48, 72];
+const APP_SECTION_IDS: AppSectionId[] = ["operations", "risk", "exposure", "pipelines", "evaluation", "lineage"];
+const PREFETCH_STEPS = 2;
 let dashboardBootstrapPromise: Promise<DashboardBootstrapResponse> | null = null;
 
 function normalizeReplayTime(value: string) {
@@ -44,9 +46,23 @@ function allocationCacheKey(startTime: string, horizon: Horizon) {
   return `${normalizeReplayTime(startTime)}:${horizon}`;
 }
 
-function orderedReplaySteps(anchorTime: string) {
+function revealCacheKey(startTime: string, horizon: Horizon) {
+  return `${normalizeReplayTime(startTime)}:${horizon}`;
+}
+
+function sectionFromHash(hash: string): AppSectionId | null {
+  const section = hash.replace(/^#section-/, "");
+  return APP_SECTION_IDS.includes(section as AppSectionId) ? (section as AppSectionId) : null;
+}
+
+function sectionHash(section: AppSectionId) {
+  return `#section-${section}`;
+}
+
+function orderedReplaySteps(anchorTime: string, limit = PREFETCH_STEPS) {
   const activeIndex = Math.max(0, REPLAY_STEPS.findIndex((step) => normalizeReplayTime(step) === normalizeReplayTime(anchorTime)));
-  return Array.from({ length: REPLAY_STEPS.length - 1 }, (_value, index) => {
+  const stepCount = Math.min(limit, REPLAY_STEPS.length - 1);
+  return Array.from({ length: stepCount }, (_value, index) => {
     const nextIndex = (activeIndex + index + 1) % REPLAY_STEPS.length;
     return normalizeReplayTime(REPLAY_STEPS[nextIndex]);
   });
@@ -64,7 +80,9 @@ function fetchDashboardBootstrap() {
 
 export default function App() {
   const [horizon, setHorizon] = useState<Horizon>(24);
-  const [activeSection, setActiveSection] = useState<AppSectionId>("operations");
+  const [activeSection, setActiveSection] = useState<AppSectionId>(() =>
+    typeof window === "undefined" ? "operations" : sectionFromHash(window.location.hash) ?? "operations",
+  );
   const [selectedH3Id, setSelectedH3Id] = useState<string | null>(null);
   const [replayTime, setReplayTime] = useState(DEFAULT_START);
   const [replay, setReplay] = useState<ReplayEvent | null>(null);
@@ -88,11 +106,20 @@ export default function App() {
   const frameRequestIdRef = useRef(0);
   const allocationCacheRef = useRef(new Map<string, AllocateResponse>());
   const allocationRequestsRef = useRef(new Map<string, Promise<AllocateResponse>>());
+  const revealCacheRef = useRef(new Map<string, RevealResponse>());
+  const revealRequestsRef = useRef(new Map<string, Promise<RevealResponse>>());
+  const revealRequestIdRef = useRef(0);
   const horizonRef = useRef<Horizon>(horizon);
+  const replayTimeRef = useRef(replayTime);
 
   useEffect(() => {
     horizonRef.current = horizon;
-  }, [horizon]);
+    replayTimeRef.current = replayTime;
+    revealRequestIdRef.current += 1;
+    setReveal(null);
+    setRevealVisible(false);
+    setRevealLoading(false);
+  }, [horizon, replayTime]);
 
   const markFrameReady = useCallback((startTime: string) => {
     const key = normalizeReplayTime(startTime);
@@ -180,9 +207,9 @@ export default function App() {
     [fetchAllocation, fetchReplayFrame],
   );
 
-  const warmReplayFrames = useCallback(
-    async (anchorTime: string) => {
-      for (const step of orderedReplaySteps(anchorTime)) {
+  const prefetchNearbyReplaySteps = useCallback(
+    async (anchorTime: string, limit = PREFETCH_STEPS) => {
+      for (const step of orderedReplaySteps(anchorTime, limit)) {
         try {
           const frameData = await fetchReplayFrame(step);
           void fetchAllocation(step, horizonRef.current, frameData.prediction.prediction_run_id).catch(() => undefined);
@@ -193,6 +220,32 @@ export default function App() {
     },
     [fetchAllocation, fetchReplayFrame],
   );
+
+  const fetchReveal = useCallback((startTime: string, revealHorizon: Horizon) => {
+    const key = revealCacheKey(startTime, revealHorizon);
+    const cached = revealCacheRef.current.get(key);
+    if (cached) {
+      return Promise.resolve(cached);
+    }
+
+    const existingRequest = revealRequestsRef.current.get(key);
+    if (existingRequest) {
+      return existingRequest;
+    }
+
+    const request = api
+      .reveal(DEFAULT_BBOX, normalizeReplayTime(startTime), revealHorizon, 36)
+      .then((revealData) => {
+        revealCacheRef.current.set(key, revealData);
+        return revealData;
+      })
+      .finally(() => {
+        revealRequestsRef.current.delete(key);
+      });
+
+    revealRequestsRef.current.set(key, request);
+    return request;
+  }, []);
 
   const applyReplayFrame = useCallback(
     (startTime: string, frame: DashboardFrameResponse) => {
@@ -260,9 +313,9 @@ export default function App() {
     (startTime: string) => {
       const key = normalizeReplayTime(startTime);
       requestReplayFrame(key);
-      void warmReplayFrames(key);
+      void prefetchNearbyReplaySteps(key);
     },
-    [requestReplayFrame, warmReplayFrames],
+    [prefetchNearbyReplaySteps, requestReplayFrame],
   );
 
   useEffect(() => {
@@ -297,7 +350,7 @@ export default function App() {
         setMetrics(bootstrapData.metrics);
         setHeldout(bootstrapData.heldout);
         applyReplayFrame(initialTime, initialFrame);
-        void warmReplayFrames(initialTime);
+        void prefetchNearbyReplaySteps(initialTime);
       } catch (loadError) {
         if (!isActive) {
           return;
@@ -312,7 +365,7 @@ export default function App() {
     return () => {
       isActive = false;
     };
-  }, [applyReplayFrame, warmReplayFrames]);
+  }, [applyReplayFrame, prefetchNearbyReplaySteps]);
 
   useEffect(() => {
     if (!prediction || normalizeReplayTime(prediction.start_time) !== normalizeReplayTime(replayTime)) {
@@ -357,29 +410,51 @@ export default function App() {
     };
   }, [fetchAllocation, horizon, prediction, replayTime]);
 
-  async function handleRevealToggle() {
+  const handleRevealToggle = useCallback(async () => {
     if (revealVisible) {
       setRevealVisible(false);
       return;
     }
 
-    if (reveal) {
+    const key = revealCacheKey(replayTime, horizon);
+    const cachedReveal = revealCacheRef.current.get(key);
+    if (cachedReveal) {
+      setReveal(cachedReveal);
       setRevealVisible(true);
       return;
     }
 
-    setRevealLoading(true);
-    try {
-      const revealData = await api.reveal(DEFAULT_BBOX, replayTime, horizon, 36);
-      setReveal(revealData);
+    if (reveal && revealCacheKey(reveal.start_time, reveal.summary.horizon_hours) === key) {
       setRevealVisible(true);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to compute reveal mode");
-      setStatus("error");
-    } finally {
-      setRevealLoading(false);
+      return;
     }
-  }
+
+    revealRequestIdRef.current += 1;
+    const requestId = revealRequestIdRef.current;
+
+    setRevealLoading(true);
+    setReveal(null);
+    try {
+      const revealData = await fetchReveal(replayTime, horizon);
+      if (
+        revealRequestIdRef.current === requestId &&
+        revealCacheKey(replayTimeRef.current, horizonRef.current) === key &&
+        revealCacheKey(revealData.start_time, revealData.summary.horizon_hours) === key
+      ) {
+        setReveal(revealData);
+        setRevealVisible(true);
+      }
+    } catch (loadError) {
+      if (revealRequestIdRef.current === requestId) {
+        setError(loadError instanceof Error ? loadError.message : "Unable to compute reveal mode");
+        setStatus("error");
+      }
+    } finally {
+      if (revealRequestIdRef.current === requestId) {
+        setRevealLoading(false);
+      }
+    }
+  }, [fetchReveal, horizon, reveal, revealVisible, replayTime]);
 
   const riskCells = prediction?.risk_cells ?? [];
   const exposures = prediction?.exposures ?? [];
@@ -393,26 +468,74 @@ export default function App() {
   const selectedExposure = selectedCell ? exposureById.get(selectedCell.h3_id) ?? null : null;
   const primaryIncident = incidents[0] ?? null;
 
-  function handleSectionSelect(section: AppSectionId) {
-    setActiveSection(section);
-    window.history.replaceState(null, "", `#section-${section}`);
-    window.setTimeout(() => scrollSectionIntoView(section), 0);
-  }
-
-  function scrollSectionIntoView(section: AppSectionId) {
-    const target = document.getElementById(`section-${section}`);
+  const scrollSectionIntoView = useCallback((section: AppSectionId, behavior: ScrollBehavior = "smooth") => {
+    const target = document.getElementById(sectionHash(section).slice(1));
     if (!target) {
       return;
     }
-    const top = target.getBoundingClientRect().top + window.scrollY - 18;
-    window.scrollTo({ top, behavior: "smooth" });
-    const scrollTop = Math.max(0, top);
-    if (document.scrollingElement) {
-      document.scrollingElement.scrollTop = scrollTop;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({
+      block: "start",
+      behavior: prefersReducedMotion ? "auto" : behavior,
+    });
+  }, []);
+
+  const handleSectionSelect = useCallback(
+    (section: AppSectionId) => {
+      setActiveSection(section);
+      window.history.pushState(null, "", sectionHash(section));
+      window.setTimeout(() => scrollSectionIntoView(section), 0);
+    },
+    [scrollSectionIntoView],
+  );
+
+  useEffect(() => {
+    const hashedSection = sectionFromHash(window.location.hash);
+    if (hashedSection) {
+      setActiveSection(hashedSection);
+      window.setTimeout(() => scrollSectionIntoView(hashedSection, "auto"), 0);
     }
-    document.documentElement.scrollTop = scrollTop;
-    document.body.scrollTop = scrollTop;
-  }
+
+    function handleHashChange() {
+      const nextSection = sectionFromHash(window.location.hash);
+      if (nextSection) {
+        setActiveSection(nextSection);
+        window.setTimeout(() => scrollSectionIntoView(nextSection), 0);
+      }
+    }
+
+    window.addEventListener("hashchange", handleHashChange);
+    window.addEventListener("popstate", handleHashChange);
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+      window.removeEventListener("popstate", handleHashChange);
+    };
+  }, [scrollSectionIntoView]);
+
+  useEffect(() => {
+    const sections = APP_SECTION_IDS.map((section) => document.getElementById(sectionHash(section).slice(1))).filter(
+      (section): section is HTMLElement => Boolean(section),
+    );
+    if (sections.length === 0) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntry = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        const visibleSection = sectionFromHash(`#${visibleEntry?.target.id ?? ""}`);
+        if (visibleSection) {
+          setActiveSection(visibleSection);
+        }
+      },
+      { rootMargin: "-20% 0px -60% 0px", threshold: [0.1, 0.35, 0.6] },
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, [status]);
 
   return (
     <div className="app-shell">

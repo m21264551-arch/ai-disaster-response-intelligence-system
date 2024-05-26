@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import type { GeoJSONSource } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import type { Allocation, Horizon, Hotspot, RevealResponse, RiskCell } from "../lib/types";
 import {
   allocationFeatureCollection,
