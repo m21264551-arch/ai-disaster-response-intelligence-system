@@ -11,9 +11,11 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from app.main import app as backend_app  # noqa: E402
+from app.security import SecurityHeadersMiddleware  # noqa: E402
 
 app = FastAPI(title="AI Disaster-Response Intelligence System")
 app.mount("/api", backend_app)
+app.add_middleware(SecurityHeadersMiddleware)
 
 STATIC_DIR = Path(__file__).resolve().parents[1] / "dashboard-static"
 
