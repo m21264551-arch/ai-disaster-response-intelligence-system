@@ -3,11 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.data.fixtures import NSW_BBOX, demo_incidents, replay_event, replay_hotspots
+from app.security import SecurityHeadersMiddleware, rate_limit_expensive_endpoint
 from app.schemas import (
     AllocateRequest,
     AllocateResponse,
@@ -51,6 +52,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 @app.get("/health")
@@ -90,7 +92,7 @@ def hotspots(
     ]
 
 
-@app.post("/predict", response_model=PredictResponse)
+@app.post("/predict", response_model=PredictResponse, dependencies=[Depends(rate_limit_expensive_endpoint)])
 def predict(payload: PredictRequest) -> PredictResponse:
     return _build_prediction(payload.start_time, payload.bbox, list(payload.horizons))
 
@@ -136,7 +138,7 @@ def dashboard_frame(payload: DashboardFrameRequest) -> DashboardFrameResponse:
     )
 
 
-@app.post("/reveal", response_model=RevealResponse)
+@app.post("/reveal", response_model=RevealResponse, dependencies=[Depends(rate_limit_expensive_endpoint)])
 def reveal(payload: RevealRequest) -> RevealResponse:
     return reveal_prediction_vs_actual(
         start_time=payload.start_time,
@@ -149,7 +151,7 @@ def reveal(payload: RevealRequest) -> RevealResponse:
     )
 
 
-@app.post("/allocate", response_model=AllocateResponse)
+@app.post("/allocate", response_model=AllocateResponse, dependencies=[Depends(rate_limit_expensive_endpoint)])
 def allocate(payload: AllocateRequest) -> AllocateResponse:
     start_time = payload.start_time or replay_event().start_time
     bbox = payload.bbox or NSW_BBOX
