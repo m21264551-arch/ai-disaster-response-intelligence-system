@@ -5,6 +5,14 @@ export default defineConfig({
   plugins: [react()],
   build: {
     chunkSizeWarningLimit: 900,
+    modulePreload: {
+      resolveDependencies(_filename, deps, context) {
+        if (context.hostType === "html") {
+          return deps.filter((dep) => !dep.includes("vendor-maplibre"));
+        }
+        return deps;
+      },
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {

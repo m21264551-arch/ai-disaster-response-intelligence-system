@@ -83,6 +83,10 @@ export function ReplayTimeline({
     return () => window.clearTimeout(timer);
   }, [nextStep, nextStepReady, onPrefetchStep, onReplayTimeChange, playing]);
 
+  function prefetchStep(step: string) {
+    onPrefetchStep?.(step);
+  }
+
   function stepForward() {
     onReplayTimeChange(nextStep);
   }
@@ -109,6 +113,8 @@ export function ReplayTimeline({
           type="button"
           className={playing ? "icon-button active" : "icon-button"}
           onClick={() => setPlaying((value) => !value)}
+          onFocus={() => prefetchStep(nextStep)}
+          onPointerEnter={() => prefetchStep(nextStep)}
           aria-label={playing ? "Pause replay" : "Play replay"}
           aria-pressed={playing}
           data-testid="replay-toggle"
@@ -119,12 +125,14 @@ export function ReplayTimeline({
           type="button"
           className="icon-button"
           onClick={stepForward}
+          onFocus={() => prefetchStep(nextStep)}
+          onPointerEnter={() => prefetchStep(nextStep)}
           aria-label="Advance replay"
           data-testid="replay-advance"
         >
           <SkipForward size={18} />
         </button>
-        <div className="timeline-track" role="slider" aria-valuemin={0} aria-valuemax={REPLAY_STEPS.length - 1} aria-valuenow={activeIndex}>
+        <div className="timeline-track" role="group" aria-label="Replay steps" aria-busy={frameLoading}>
           <div className="timeline-progress" style={{ width: `${progress}%` }} />
           {REPLAY_STEPS.map((step, index) => {
             const stepReady = readySteps?.has(normalizeReplayTime(step)) ?? false;
@@ -145,8 +153,11 @@ export function ReplayTimeline({
                 className={className}
                 style={{ left: `${(index / (REPLAY_STEPS.length - 1)) * 100}%` }}
                 onClick={() => onReplayTimeChange(step)}
+                onFocus={() => prefetchStep(step)}
+                onPointerEnter={() => prefetchStep(step)}
                 aria-label={`Set replay to ${timeLabel(step)}`}
                 aria-current={isActive ? "step" : undefined}
+                aria-pressed={isActive}
                 data-testid={`replay-step-${index}`}
               />
             );
@@ -154,7 +165,7 @@ export function ReplayTimeline({
         </div>
         <div className="timeline-meta">
           <strong>{timeLabel(replayTime)}</strong>
-          <span>{timelineStatus}</span>
+          <span aria-live="polite">{timelineStatus}</span>
         </div>
       </div>
 
