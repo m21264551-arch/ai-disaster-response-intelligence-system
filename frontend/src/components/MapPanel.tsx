@@ -66,7 +66,7 @@ export function MapPanel({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+      style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
       center: [150.85, -35.1],
       zoom: 7.1,
       attributionControl: { compact: false },
@@ -90,15 +90,15 @@ export function MapPanel({
             ["linear"],
             ["get", "risk"],
             0.05,
-            "#1f6f5b",
+            "#f2f2f2",
             0.35,
-            "#d2a43a",
+            "#d4d4d4",
             0.62,
-            "#eb6b35",
+            "#9b9b9b",
             0.88,
-            "#f43f2f",
+            "#8a5a2b",
           ],
-          "fill-opacity": 0.52,
+          "fill-opacity": 0.6,
         },
       });
 
@@ -107,7 +107,7 @@ export function MapPanel({
         type: "line",
         source: "risk-cells",
         paint: {
-          "line-color": "rgba(255,255,255,0.28)",
+          "line-color": "rgba(17,17,17,0.28)",
           "line-width": 0.7,
         },
       });
@@ -118,8 +118,8 @@ export function MapPanel({
         source: "risk-cells",
         filter: ["==", ["get", "h3_id"], ""],
         paint: {
-          "line-color": "#eaf7f4",
-          "line-width": 3,
+          "line-color": "#111111",
+          "line-width": 2.4,
         },
       });
 
@@ -132,14 +132,14 @@ export function MapPanel({
             "match",
             ["get", "status"],
             "hit",
-            "#2fe4cc",
+            "#111111",
             "miss",
-            "#ff365d",
+            "#8a5a2b",
             "false_alarm",
-            "#f4a93f",
+            "#d7d7d7",
             "#ffffff",
           ],
-          "fill-opacity": 0.58,
+          "fill-opacity": 0.54,
         },
       });
 
@@ -152,11 +152,11 @@ export function MapPanel({
             "match",
             ["get", "status"],
             "hit",
-            "#bffdf4",
+            "#111111",
             "miss",
-            "#ffd3dc",
+            "#8a5a2b",
             "false_alarm",
-            "#ffe3ad",
+            "#777777",
             "#ffffff",
           ],
           "line-width": [
@@ -175,10 +175,10 @@ export function MapPanel({
         source: "hotspots",
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["get", "intensity"], 30, 5, 110, 12],
-          "circle-color": "#ff4d32",
-          "circle-opacity": 0.86,
+          "circle-color": "#8a5a2b",
+          "circle-opacity": 0.82,
           "circle-stroke-width": 1.5,
-          "circle-stroke-color": "#ffe7df",
+          "circle-stroke-color": "#ffffff",
         },
       });
 
@@ -188,10 +188,10 @@ export function MapPanel({
         source: "future-hotspots",
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["get", "intensity"], 30, 6, 110, 13],
-          "circle-color": "#ff365d",
-          "circle-opacity": 0.9,
+          "circle-color": "#8a5a2b",
+          "circle-opacity": 0.88,
           "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
+          "circle-stroke-color": "#111111",
         },
       });
 
@@ -201,9 +201,9 @@ export function MapPanel({
         source: "allocations",
         paint: {
           "circle-radius": 8,
-          "circle-color": "#2fe4cc",
+          "circle-color": "#111111",
           "circle-opacity": 0.95,
-          "circle-stroke-color": "#061514",
+          "circle-stroke-color": "#ffffff",
           "circle-stroke-width": 2,
         },
       });

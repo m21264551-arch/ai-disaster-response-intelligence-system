@@ -559,7 +559,7 @@ export default function App() {
           <div className="command-copy">
             <div className="system-mark">
               <RadioTower size={18} />
-              AI Disaster-Response Intelligence
+              Risk Replay Laboratory
             </div>
             <h1>NSW Bushfire Operations Console</h1>
             <p>{timeLabel(replayTime)} prediction cut-off · {horizon}h forecast · future hotspots withheld</p>
