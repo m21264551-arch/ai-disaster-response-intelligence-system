@@ -19,7 +19,7 @@ interface AppSidebarProps {
 export function AppSidebar({ activeSection, onSectionSelect }: AppSidebarProps) {
   return (
     <nav className="sidebar" aria-label="Main navigation">
-      <div className="brand-mark">AI</div>
+      <div className="brand-mark">ML</div>
       <div className="nav-stack">
         {items.map((item) => (
           <a
