@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import hashlib
 import math
 from functools import lru_cache
@@ -84,19 +85,17 @@ def load_osm_infrastructure() -> tuple[dict[str, float | str], ...]:
     if not OSM_INFRASTRUCTURE_PATH.exists():
         return ()
 
-    import pandas as pd
-
-    frame = pd.read_csv(OSM_INFRASTRUCTURE_PATH)
-    required = {"kind", "lat", "lon"}
-    if not required.issubset(frame.columns):
-        return ()
-
     records = []
-    for row in frame.to_dict("records"):
-        kind = str(row["kind"])
-        if kind not in {"hospital", "school", "major_road", "shelter"}:
-            continue
-        records.append({"kind": kind, "lat": float(row["lat"]), "lon": float(row["lon"])})
+    with OSM_INFRASTRUCTURE_PATH.open(newline="") as csv_file:
+        reader = csv.DictReader(csv_file)
+        if not {"kind", "lat", "lon"}.issubset(reader.fieldnames or []):
+            return ()
+
+        for row in reader:
+            kind = str(row["kind"])
+            if kind not in {"hospital", "school", "major_road", "shelter"}:
+                continue
+            records.append({"kind": kind, "lat": float(row["lat"]), "lon": float(row["lon"])})
     return tuple(records)
 
 
@@ -105,13 +104,19 @@ def load_abs_population() -> dict[str, float]:
     if not ABS_POPULATION_H3_PATH.exists():
         return {}
 
-    import pandas as pd
+    populations: dict[str, float] = {}
+    with ABS_POPULATION_H3_PATH.open(newline="") as csv_file:
+        reader = csv.DictReader(csv_file)
+        if not {"h3_id", "population"}.issubset(reader.fieldnames or []):
+            return {}
 
-    frame = pd.read_csv(ABS_POPULATION_H3_PATH)
-    if not {"h3_id", "population"}.issubset(frame.columns):
-        return {}
-
-    return {
-        str(row["h3_id"]): max(0.0, float(row["population"]))
-        for row in frame[["h3_id", "population"]].dropna().to_dict("records")
-    }
+        for row in reader:
+            h3_id = str(row["h3_id"])
+            if not h3_id:
+                continue
+            try:
+                population = max(0.0, float(row["population"]))
+            except (TypeError, ValueError):
+                continue
+            populations[h3_id] = population
+    return populations

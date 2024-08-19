@@ -16,10 +16,10 @@
   --faint: #8a8a8a;
   --accent: #111111;
   --accent-soft: #f1f1f1;
-  --risk: #8a5a2b;
-  --risk-soft: #f8f3ec;
-  --red: #8a3b2d;
-  --amber: #8a5a2b;
+  --risk: #111111;
+  --risk-soft: #f5f5f5;
+  --red: #333333;
+  --amber: #555555;
   --teal: #111111;
   --teal-soft: #f1f1f1;
   --shadow: 0 1px 2px rgba(17, 17, 17, 0.04);
@@ -666,32 +666,90 @@ dt {
   font-size: 0.92rem;
 }
 
-.map-container {
-  min-height: 100%;
-  flex: 1;
-  background: var(--surface-strong);
-}
-
 .map-placeholder {
   display: grid;
   place-items: center;
   color: var(--accent);
 }
 
-.maplibregl-ctrl-group {
-  border: 1px solid var(--border) !important;
-  border-radius: 7px !important;
-  background: #ffffff !important;
-  box-shadow: none !important;
+.map-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  background: #f8f8f8;
 }
 
-.maplibregl-ctrl-group button {
-  background-color: #ffffff !important;
+.map-water {
+  fill: #f7f7f7;
 }
 
-.maplibregl-ctrl-attrib {
-  color: var(--muted) !important;
-  background: rgba(255, 255, 255, 0.84) !important;
+.map-coast {
+  fill: #eeeeee;
+  opacity: 0.88;
+}
+
+.map-grid {
+  opacity: 0.42;
+}
+
+.map-label {
+  fill: #8a8a8a;
+  font-size: 13px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.86);
+  stroke-width: 4px;
+}
+
+.map-cell {
+  stroke: rgba(17, 17, 17, 0.3);
+  stroke-width: 1.1;
+  cursor: pointer;
+  transition:
+    opacity 120ms ease,
+    stroke-width 120ms ease;
+}
+
+.map-cell:hover {
+  opacity: 0.86;
+  stroke-width: 2;
+}
+
+.map-cell.selected {
+  fill-opacity: 0.84;
+  stroke: #111111;
+  stroke-width: 3;
+}
+
+.map-cell.reveal {
+  fill-opacity: 0.66;
+  stroke-width: 1.6;
+}
+
+.map-cell.reveal.hit {
+  stroke: #111111;
+}
+
+.map-cell.reveal.miss {
+  stroke: #555555;
+}
+
+.map-cell.reveal.false_alarm {
+  stroke: #777777;
+}
+
+.map-hotspot {
+  fill: var(--risk);
+  fill-opacity: 0.88;
+  stroke: #ffffff;
+  stroke-width: 2.2;
+}
+
+.map-allocation {
+  fill: #111111;
+  stroke: #ffffff;
+  stroke-width: 2.2;
 }
 
 .legend {
@@ -708,11 +766,30 @@ dt {
 }
 
 .legend-ramp {
+  display: grid;
   width: 112px;
   height: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: linear-gradient(90deg, #f2f2f2, #d6d6d6, #9e9e9e, var(--risk));
+  background: #ffffff;
+}
+
+.ramp-step.low {
+  background: #f2f2f2;
+}
+
+.ramp-step.medium-low {
+  background: #d6d6d6;
+}
+
+.ramp-step.medium-high {
+  background: #9e9e9e;
+}
+
+.ramp-step.high {
+  background: #4f4f4f;
 }
 
 .reveal-legend {
@@ -737,7 +814,7 @@ dt {
 }
 
 .miss-key {
-  background: var(--risk);
+  background: #6f6f6f;
 }
 
 .false-key {
@@ -955,9 +1032,9 @@ meter::-moz-meter-bar {
 }
 
 .allocation-error {
-  border-color: #d6b7b0;
+  border-color: #d0d0d0;
   color: var(--red);
-  background: #fbf7f6;
+  background: #f7f7f7;
 }
 
 .allocation-error svg {
@@ -1495,6 +1572,10 @@ meter::-moz-meter-bar {
     width: 100%;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .control-cluster > .info-tip {
+    display: none;
   }
 
   .evidence-strip {

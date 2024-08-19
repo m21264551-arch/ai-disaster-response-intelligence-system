@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.config import get_settings
 from app.data.fixtures import NSW_BBOX, demo_incidents, replay_event, replay_hotspots
@@ -52,6 +53,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=512)
 app.add_middleware(SecurityHeadersMiddleware)
 
 
@@ -107,6 +109,15 @@ async def dashboard_bootstrap(payload: DashboardBootstrapRequest) -> DashboardBo
     hotspot_start = payload.hotspot_start or event.start_time
     settings = get_settings()
     incidents = demo_incidents() if settings.mode == "demo" else await fetch_nsw_rfs_incidents(settings)
+    initial_horizon = payload.horizons[0] if payload.horizons else PREDICTION_HORIZONS[0]
+    allocations, optimizer = allocate_resources(
+        risk_cells=prediction.risk_cells,
+        exposures=prediction.exposures,
+        horizon_hours=initial_horizon,
+        crews=5,
+        supplies=3,
+        max_distance_km=220,
+    )
 
     return DashboardBootstrapResponse(
         replay=event,
@@ -119,6 +130,12 @@ async def dashboard_bootstrap(payload: DashboardBootstrapRequest) -> DashboardBo
         ),
         metrics=demo_metrics(payload.metrics_model_run_id),
         heldout=heldout_failure_analysis(),
+        allocation=AllocateResponse(
+            prediction_run_id=prediction.prediction_run_id,
+            allocations=allocations,
+            total_priority_score=round(sum(item.priority_score for item in allocations), 4),
+            optimizer=optimizer,
+        ),
     )
 
 

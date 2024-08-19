@@ -19,9 +19,9 @@ CONTENT_SECURITY_POLICY = (
     "form-action 'self'; "
     "script-src 'self'; "
     "style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data: blob: https://*.cartocdn.com; "
-    "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 https://*.cartocdn.com; "
-    "font-src 'self' data: https://*.cartocdn.com; "
+    "img-src 'self' data: blob:; "
+    "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000; "
+    "font-src 'self' data:; "
     "worker-src 'self' blob:"
 )
 

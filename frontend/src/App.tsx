@@ -344,13 +344,19 @@ export default function App() {
           hotspots: bootstrapData.hotspots,
         };
         const initialTime = normalizeReplayTime(bootstrapData.prediction.start_time);
+        const initialAllocation = bootstrapData.allocation ?? null;
+        if (initialAllocation) {
+          allocationCacheRef.current.set(allocationCacheKey(initialTime, horizonRef.current), initialAllocation);
+        }
 
         setReplay(bootstrapData.replay);
         setIncidents(bootstrapData.incidents);
         setMetrics(bootstrapData.metrics);
         setHeldout(bootstrapData.heldout);
+        setAllocation(initialAllocation);
+        setAllocationError(null);
+        setAllocationLoading(false);
         applyReplayFrame(initialTime, initialFrame);
-        void prefetchNearbyReplaySteps(initialTime);
       } catch (loadError) {
         if (!isActive) {
           return;
@@ -365,7 +371,7 @@ export default function App() {
     return () => {
       isActive = false;
     };
-  }, [applyReplayFrame, prefetchNearbyReplaySteps]);
+  }, [applyReplayFrame]);
 
   useEffect(() => {
     if (!prediction || normalizeReplayTime(prediction.start_time) !== normalizeReplayTime(replayTime)) {
