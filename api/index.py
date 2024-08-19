@@ -24,5 +24,11 @@ STATIC_DIR = Path(__file__).resolve().parents[1] / "dashboard-static"
 def serve_dashboard(asset_path: str = "") -> FileResponse:
     requested = (STATIC_DIR / asset_path).resolve()
     if requested.is_file() and requested.is_relative_to(STATIC_DIR):
-        return FileResponse(requested)
-    return FileResponse(STATIC_DIR / "index.html")
+        response = FileResponse(requested)
+        if requested.parts[-2:-1] == ("assets",):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+    response = FileResponse(STATIC_DIR / "index.html")
+    response.headers["Cache-Control"] = "no-cache"
+    return response

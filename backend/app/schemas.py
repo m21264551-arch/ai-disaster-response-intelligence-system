@@ -138,6 +138,7 @@ class DashboardBootstrapResponse(BaseModel):
     hotspots: list[Hotspot]
     metrics: ModelMetrics
     heldout: HeldoutEvaluation
+    allocation: AllocateResponse | None = None
 
 
 class DashboardFrameRequest(BaseModel):

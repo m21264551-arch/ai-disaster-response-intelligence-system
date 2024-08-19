@@ -5,6 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.config import get_settings
 from app.ml.features import FEATURE_COLUMNS
 
 ARTIFACT_DIR = Path(__file__).resolve().parent / "artifacts"
@@ -32,6 +33,8 @@ class TrainedRiskModel:
 
 @lru_cache(maxsize=1)
 def get_trained_model() -> TrainedRiskModel | None:
+    if not get_settings().load_trained_model:
+        return None
     if not MODEL_PATH.exists():
         return None
     import joblib

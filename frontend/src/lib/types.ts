@@ -66,6 +66,7 @@ export interface DashboardBootstrapResponse {
   hotspots: Hotspot[];
   metrics: ModelMetrics;
   heldout: HeldoutEvaluation;
+  allocation?: AllocateResponse | null;
 }
 
 export interface DashboardFrameResponse {
