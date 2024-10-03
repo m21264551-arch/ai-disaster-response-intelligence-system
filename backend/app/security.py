@@ -19,7 +19,7 @@ CONTENT_SECURITY_POLICY = (
     "form-action 'self'; "
     "script-src 'self'; "
     "style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data: blob: https://*.cartocdn.com; "
+    "img-src 'self' data: blob: https://tile.openstreetmap.org; "
     "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000; "
     "font-src 'self' data:; "
     "worker-src 'self' blob:"

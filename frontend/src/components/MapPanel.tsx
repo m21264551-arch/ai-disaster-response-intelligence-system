@@ -16,8 +16,8 @@ interface MapPanelProps {
   onSelectCell: (h3Id: string) => void;
 }
 
-const TILE_URL = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-const TILE_ATTRIBUTION = "&copy; OpenStreetMap contributors &copy; CARTO";
+const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_ATTRIBUTION = "&copy; OpenStreetMap contributors";
 const DEFAULT_CENTER: L.LatLngExpression = [-35.35, 150.45];
 const DEFAULT_ZOOM = 7;
 
@@ -65,7 +65,6 @@ export function MapPanel({
     L.tileLayer(TILE_URL, {
       attribution: TILE_ATTRIBUTION,
       maxZoom: 18,
-      subdomains: "abcd",
     }).addTo(map);
 
     riskLayerRef.current = L.layerGroup().addTo(map);
@@ -105,7 +104,7 @@ export function MapPanel({
         style: {
           color: selected ? "#111111" : "#6b5b3e",
           fillColor: riskFill(cell.risk_score),
-          fillOpacity: selected ? 0.78 : 0.58,
+          fillOpacity: selected ? 0.68 : 0.46,
           opacity: 0.88,
           weight: selected ? 3 : 1,
         },
