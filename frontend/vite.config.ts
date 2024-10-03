@@ -11,6 +11,9 @@ export default defineConfig({
           if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) {
             return "vendor-react";
           }
+          if (id.includes("node_modules/leaflet")) {
+            return "vendor-map";
+          }
           if (id.includes("node_modules/lucide-react")) {
             return "vendor-icons";
           }
