@@ -31,7 +31,7 @@ def test_static_dashboard_shell_includes_security_headers():
     assert response.status_code == 200
     assert response.headers["content-security-policy"].startswith("default-src 'self'")
     assert "connect-src 'self'" in response.headers["content-security-policy"]
-    assert "https://*.cartocdn.com" in response.headers["content-security-policy"]
+    assert "https://tile.openstreetmap.org" in response.headers["content-security-policy"]
     assert response.headers["strict-transport-security"] == security.STRICT_TRANSPORT_SECURITY
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["x-frame-options"] == "DENY"
