@@ -17,7 +17,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
       - name: Run backend tests
-        run: PYTHONPATH=backend pytest backend/tests -q
+        run: PYTHONPATH=.:backend python -m pytest backend/tests -q
 
   frontend:
     runs-on: ubuntu-latest
@@ -34,6 +34,24 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npm run build
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: pip install -r backend/requirements.txt
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:browser
+        working-directory: frontend
 
   security:
     runs-on: ubuntu-latest
