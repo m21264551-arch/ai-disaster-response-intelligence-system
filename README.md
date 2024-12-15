@@ -24,8 +24,6 @@ Demo flow:
 4. Read the held-out event panel: model lift, misses, false alarms, and top hits.
 5. Inspect resource allocation recommendations for crews and supplies.
 
-For a polished walkthrough, use [Demo Video Script](docs/demo-video-script.md).
-
 ## Free HTTPS Deployment
 
 The repo includes a Vercel deployment path for a public read-only demo:
