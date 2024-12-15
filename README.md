@@ -4,7 +4,7 @@
 
 An Australian bushfire intelligence platform that hides the future, forecasts 24/48/72-hour hotspot risk on H3 cells, reveals the actual fire progression, and recommends where limited response resources should go.
 
-This is built to look and feel like a serious ML Engineering system, not a notebook demo: real public hotspot data, leakage-safe temporal labels, a trained model artifact, a held-out event benchmark, FastAPI contracts, and a React/MapLibre command dashboard.
+This is built to look and feel like a serious ML Engineering system, not a notebook demo: real public hotspot data, leakage-safe temporal labels, a trained model artifact, a held-out event benchmark, FastAPI contracts, and a React/Leaflet command dashboard.
 
 > Portfolio/demo system only. This is not an official emergency-response tool and must not be used for operational decisions.
 
@@ -30,6 +30,7 @@ For a polished walkthrough, use [Demo Video Script](docs/demo-video-script.md).
 
 The repo includes a Vercel deployment path for a public read-only demo:
 
+- Current public demo: https://ideas-mauve.vercel.app
 - Static dashboard is built from `frontend/`.
 - FastAPI is served from `api/index.py` under `/api`.
 - The frontend build uses `VITE_API_BASE_URL=/api`, so the deployed app runs from one HTTPS origin.
@@ -47,7 +48,7 @@ Keep `DISASTER_INTEL_MODE=demo` for the public deployment unless you intentional
 - **Temporal ML:** labels each H3 cell positive only if a hotspot appears in the future horizon, with lookback-only features to prevent leakage.
 - **Geospatial system design:** H3 indexing, spread baseline, ABS population-grid aggregation, weather joins, exposure overlays, infrastructure scoring, and map-ready GeoJSON outputs.
 - **Model evaluation:** PR-AUC, Recall@Top-10%, Brier score, calibration bins, and prediction-vs-actual failure analysis.
-- **Production shape:** FastAPI service, typed API contracts, reproducible scripts, Docker Compose, tests, and a React/MapLibre dashboard.
+- **Production shape:** FastAPI service, typed API contracts, reproducible scripts, Docker Compose, tests, and a React/Leaflet dashboard.
 - **Decision layer:** resource allocation ranks cells by risk, exposed population, infrastructure weight, and distance constraints.
 
 ## Known Scope
@@ -120,7 +121,7 @@ flowchart LR
     D --> F["Allocation optimizer"]
     E --> F
     F --> G["FastAPI"]
-    G --> H["React + MapLibre dashboard"]
+    G --> H["React + Leaflet dashboard"]
 ```
 
 ## Local Development
@@ -223,7 +224,7 @@ PYTHONPATH=backend .venv/bin/python backend/scripts/evaluate_heldout_model.py \
 
 **ML Engineer**
 
-- Built an AI disaster-response intelligence system for Australian bushfires using Python, FastAPI, H3, scikit-learn, and React/MapLibre; trained 24/48/72-hour geospatial risk models on a five-state `13,586`-row Digital Earth Australia hotspot corpus enriched with BoM weather and ABS population-grid features, then validated on a `25,800`-row held-out NSW event window.
+- Built an AI disaster-response intelligence system for Australian bushfires using Python, FastAPI, H3, scikit-learn, and React/Leaflet; trained 24/48/72-hour geospatial risk models on a five-state `13,586`-row Digital Earth Australia hotspot corpus enriched with BoM weather and ABS population-grid features, then validated on a `25,800`-row held-out NSW event window.
 
 **Data Scientist / Applied ML**
 

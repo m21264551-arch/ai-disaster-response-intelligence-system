@@ -50,4 +50,4 @@ Open `http://127.0.0.1:5173` if the browser does not open automatically.
 
 ## CV Line
 
-Built an AI disaster-response intelligence system for Australian bushfires using FastAPI, H3, scikit-learn, BoM weather observations, ABS population-grid exposure overlays, and React/MapLibre; trained 24/48/72-hour geospatial risk models on a five-state public hotspot corpus and improved held-out PR-AUC from `0.3580` to `0.5229` over a wind-aligned baseline.
+Built an AI disaster-response intelligence system for Australian bushfires using FastAPI, H3, scikit-learn, BoM weather observations, ABS population-grid exposure overlays, and React/Leaflet; trained 24/48/72-hour geospatial risk models on a five-state public hotspot corpus and improved held-out PR-AUC from `0.3580` to `0.5229` over a wind-aligned baseline.

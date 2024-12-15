@@ -70,7 +70,7 @@ The repository does not commit an OSM extract by default. If `backend/app/data/o
 
 ## Dashboard Basemap
 
-The React dashboard uses the public CARTO Dark Matter MapLibre style, which is based on OpenStreetMap data. The map attribution control is enabled in the dashboard so CARTO/OpenStreetMap attribution is visible at runtime.
+The React dashboard uses Leaflet with standard OpenStreetMap raster tiles from `https://tile.openstreetmap.org`. The map attribution control is enabled in the dashboard so OpenStreetMap attribution is visible at runtime.
 
 ## ABS Population Grid
 

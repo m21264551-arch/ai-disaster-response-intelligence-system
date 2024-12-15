@@ -5,7 +5,7 @@
 - FastAPI backend serving incidents, hotspots, prediction, allocation, replay, and metrics contracts.
 - H3-based feature layer for grid-cell prediction and geometry rendering.
 - Deterministic NSW bushfire replay for offline demo reliability.
-- MapLibre React dashboard for risk, hotspots, resource allocations, timeline replay, and model evaluation.
+- Leaflet React dashboard for risk, hotspots, resource allocations, timeline replay, and model evaluation.
 - PostGIS schema and Docker Compose service for production-style geospatial persistence.
 
 ## Data Flow
