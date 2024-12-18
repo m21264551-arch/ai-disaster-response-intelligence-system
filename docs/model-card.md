@@ -17,7 +17,7 @@ The real BoM daily weather snapshot is retained. Raw intensity is excluded becau
 
 1. Define candidates identically for training and replay: H3 resolution 5, ring 3 around detections from the preceding 36 hours, with centres inside the fixed NSW bounds and land mask.
 2. Build features only after filtering observations to the cutoff. Use local/neighbour counts, distance, local recency, horizon, the spread heuristic and four actual BoM weather fields plus station distance/age.
-3. Treat daily weather as available at 00:00 UTC two days after its date. This conservative lag is an explicit assumption; historical publication timestamps are unavailable. Missing weather remains NaN for the model.
+3. Treat daily weather as available at 00:00 UTC two days after its date. This conservative lag is an explicit assumption; historical publication timestamps are unavailable. Missing weather remains NaN for the model. Finite features are rounded to six decimal places before fitting and scoring (1 mm for distances), preventing CPU-level geometric roundoff from crossing tree thresholds.
 4. Keep complete cutoff groups together and purge training cutoffs whose maximum 72-hour outcome window reaches the January 10 evaluation boundary. The model trains on **4,527 cell/horizon rows from three complete cutoffs**; its latest training outcome ends January 9 at 12:00 UTC.
 5. Fit histogram gradient boosting with fixed settings: 150 iterations, learning rate 0.055, 15 leaves, L2=0.1, seed 42, no random early-stopping validation or event-based tuning.
 6. Reload that serialized model and generate every public frame from it. Every frame carries matching dataset/model/candidate identities.
