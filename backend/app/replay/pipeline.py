@@ -4,7 +4,8 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import subprocess
+import shutil
+import subprocess  # nosec B404 - fixed read-only Git metadata query, no shell/user input
 from datetime import datetime, timezone
 from pathlib import Path
 import h3
@@ -330,8 +331,12 @@ def generate():
     )
     model.fit(train[FEATURES], train.label)
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    revision = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=ROOT.parent, text=True
+    git = shutil.which("git")
+    if not git:
+        raise RuntimeError("Git is required to record the experiment source revision")
+    # Resolved executable and literal arguments; no external text enters this call.
+    revision = subprocess.check_output(  # nosec B603
+        [git, "rev-parse", "HEAD"], cwd=ROOT.parent, text=True
     ).strip()
     source = digest(Path(__file__).read_bytes())
     identity = {
