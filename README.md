@@ -40,11 +40,11 @@ Recall includes observed cells outside the candidate area. AP and Brier evaluate
 
 | Horizon | Model AP | Persistence AP | Spread heuristic AP | Model Brier | Spread Brier |
 |---|---:|---:|---:|---:|---:|
-| 24h | 0.561 | 0.438 | 0.596 | 0.100 | 0.190 |
-| 48h | 0.562 | 0.481 | 0.626 | 0.142 | 0.303 |
-| 72h | 0.549 | 0.507 | 0.650 | 0.179 | 0.385 |
+| 24h | 0.562 | 0.438 | 0.596 | 0.099 | 0.190 |
+| 48h | 0.556 | 0.481 | 0.626 | 0.144 | 0.303 |
+| 72h | 0.547 | 0.507 | 0.649 | 0.180 | 0.385 |
 
-The heuristic ranks better on this event. The model's score magnitudes have better Brier loss than that heuristic, while persistence has better Brier at 72 hours. At a fixed 10% budget the model still misses many observed cells. These results are shown without claiming an operationally useful forecaster.
+The heuristic ranks better on this event. The model's score magnitudes have better Brier loss than that heuristic, while persistence has better Brier at 48 and 72 hours. At a fixed 10% budget the model still misses many observed cells. These results are shown without claiming an operationally useful forecaster.
 
 ## Architecture and API
 
