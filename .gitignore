@@ -18,3 +18,8 @@ public/
 *.log
 .DS_Store
 .vercel
+
+frontend/test-results/
+frontend/playwright-report/
+
+dashboard-static/

@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 BACKEND_HOST ?= 127.0.0.1
-BACKEND_PORT ?= 8000
+BACKEND_PORT ?= 8008
 FRONTEND_HOST ?= 127.0.0.1
 FRONTEND_PORT ?= 5173
 OPEN_BROWSER ?= 1
@@ -17,7 +17,7 @@ DASHBOARD_URL := http://$(FRONTEND_HOST):$(FRONTEND_PORT)
 .PHONY: help bootstrap install install-optional install-dev demo backend frontend train train-xgboost train-national evaluate-heldout download-bom download-abs-population build-multiseason-corpus download-osm test build audit check
 
 help:
-	@echo "AI Disaster-Response Intelligence System"
+	@echo "NSW Bushfire Forecast Replay"
 	@echo ""
 	@echo "Commands:"
 	@echo "  make demo              Start backend + frontend and open the dashboard"
@@ -26,9 +26,9 @@ help:
 	@echo "  make install-dev       Install local security audit tools"
 	@echo "  make backend           Start only the FastAPI backend"
 	@echo "  make frontend          Start only the React/Vite frontend"
-	@echo "  make train             Rebuild the trained risk model artifact"
+	@echo "  make replay            Rebuild the public frozen model and replay"
 	@echo "  make train-xgboost     Rebuild the risk model with optional XGBoost"
-	@echo "  make train-national    Train against the multi-state, multi-season corpus"
+	@echo "  make train-national    Legacy experiment (not the public replay)"
 	@echo "  make evaluate-heldout  Score the frozen model on the held-out event"
 	@echo "  make download-bom      Download real BoM station weather observations"
 	@echo "  make download-abs-population Aggregate the ABS population grid to H3"
@@ -66,13 +66,13 @@ install-dev: bootstrap
 
 demo: bootstrap
 	@echo "Starting demo at $(DASHBOARD_URL)"
-	@PYTHONPATH=backend $(UVICORN) app.main:app --host $(BACKEND_HOST) --port $(BACKEND_PORT) & \
+	@PYTHONPATH=.:backend $(UVICORN) api.index:app --host $(BACKEND_HOST) --port $(BACKEND_PORT) & \
 	BACKEND_PID=$$!; \
 	npm --prefix frontend run dev -- --host $(FRONTEND_HOST) --port $(FRONTEND_PORT) & \
 	FRONTEND_PID=$$!; \
 	trap 'kill $$BACKEND_PID $$FRONTEND_PID 2>/dev/null || true' EXIT INT TERM; \
 	for attempt in {1..30}; do \
-		if $(VENV_PYTHON) -c "import urllib.request; urllib.request.urlopen('http://$(BACKEND_HOST):$(BACKEND_PORT)/health', timeout=1)" >/dev/null 2>&1; then \
+		if $(VENV_PYTHON) -c "import urllib.request; urllib.request.urlopen('http://$(BACKEND_HOST):$(BACKEND_PORT)/api/health', timeout=1)" >/dev/null 2>&1; then \
 			break; \
 		fi; \
 		sleep 1; \
@@ -96,7 +96,7 @@ demo: bootstrap
 	wait $$BACKEND_PID $$FRONTEND_PID
 
 backend: bootstrap
-	PYTHONPATH=backend $(UVICORN) app.main:app --reload --host $(BACKEND_HOST) --port $(BACKEND_PORT)
+	PYTHONPATH=.:backend $(UVICORN) api.index:app --reload --host $(BACKEND_HOST) --port $(BACKEND_PORT)
 
 frontend: bootstrap
 	npm --prefix frontend run dev -- --host $(FRONTEND_HOST) --port $(FRONTEND_PORT)
@@ -158,7 +158,7 @@ download-osm: bootstrap
 		--out backend/app/data/osm_infrastructure_sample.csv
 
 test: bootstrap
-	PYTHONPATH=backend $(VENV_PYTHON) -m pytest backend/tests -q
+	PYTHONPATH=.:backend $(VENV_PYTHON) -m pytest backend/tests -q
 
 build: bootstrap
 	npm --prefix frontend run build
@@ -170,3 +170,6 @@ audit: install-dev
 	npm --prefix frontend audit --omit=dev
 
 check: test build
+
+replay: bootstrap
+	PYTHONPATH=backend $(VENV_PYTHON) -m app.replay.pipeline
