@@ -1,13 +1,17 @@
-# A historical forecast you can actually inspect
+# NSW Hotspot Replay
 
-**Question.** At a known cutoff, which nearby cells does a fixed model rank highest, and what did satellites record afterward?
+[Demo](https://disaster.m21264551.com/) · [Code](https://github.com/m21264551-arch/ai-disaster-response-intelligence-system)
 
-**Approach.** Replace hand-authored replay points with complete paginated DEA archive snapshots. Record a coverage receipt for every query. Use the same candidate construction for model fitting, scoring and UI frames. Purge all 72-hour training outcome windows that reach the reserved January 10 event boundary. Serialize the fitted model, reload it, and generate versioned frames with matching identities.
+The spread heuristic ranked future hotspot cells better than the learned model at 24 hours: average precision was 0.596 versus 0.562. The learned model had a lower Brier score, 0.099 versus 0.190. Ranking quality and score accuracy tell different stories.
 
-**Result.** At 24 hours, the model achieves 0.562 AP on the pooled candidate rows, compared with persistence 0.438 and the spread heuristic 0.596. Brier is 0.099 for the model versus 0.190 for the heuristic. The simpler heuristic ranks better; the learned model does not earn a blanket “best model” claim. The 48/72-hour results and full error counts are downloadable and visible.
+## Reveal the errors
 
-**Failure analysis.** A fixed top-10% budget misses many observed cells, including detections beyond the candidate area. Extending a horizon beyond recorded coverage is unavailable, not a zero-hotspot result. Earlier corpus manifests named six-day windows while some underlying samples ended on day one; new acquisitions paginate the complete query and reject partial results. Weather and mixed-unit intensity needed separate scrutiny too.
+Choose a historical cutoff and forecast horizon, then show the satellite observations. The map marks hits, misses and false alarms; the Table view exposes individual cells. Predictions select the highest-ranked 10% of candidates before any future detections are consulted.
 
-**Engineering decision.** Serve precomputed frames through FastAPI. Browsing needs neither inference nor retraining. Model SHA256, dataset ID, candidate-set identity and evaluation policy connect the map to its benchmark. Abort/generation checks keep late responses from changing the selected horizon. A cell table makes every important result inspectable without relying on the map.
+## Keep the map and benchmark together
 
-**Next limitation.** The model trains on only 4,527 rows from three dependent cutoffs. January 10–16 was used by an earlier benchmark and is not newly unseen evidence. More separately reserved seasons, calibrated data availability and sensor-aware coverage would be required before a broader forecasting claim.
+The API serves saved predictions from one trained model and a recorded DEA dataset. The same candidate cells and artifact identities connect the map, cell details and evaluation tables. Training uses complete cutoff groups with a 72-hour exclusion window. Changing the horizon cancels earlier requests so a late response cannot replace the current selection.
+
+## One event is a narrow test
+
+Training contains 4,527 rows from three dependent cutoffs. The January 10–16 evaluation window was used in an earlier benchmark, so it is not new unseen evidence. Satellite hotspots are not fire perimeters, and the scores are uncalibrated. Separate seasons would be needed to assess broader forecasting performance.

@@ -87,7 +87,8 @@ export default function App() {
     [tolerance, setTolerance] = useState<0 | 1>(0);
   const [selected, setSelected] = useState<string | null>(null),
     [filter, setFilter] = useState("selected"),
-    [view, setView] = useState("replay");
+    [view, setView] = useState("replay"),
+    [surface, setSurface] = useState("map");
   const revealSequence = useRef(0);
   const generation = useRef(0),
     revealController = useRef<AbortController | null>(null);
@@ -204,33 +205,21 @@ export default function App() {
     <>
       <header>
         <a href="/" className="brand">
-          NSW Bushfire Forecast Replay
+          NSW Hotspot Replay
         </a>
+        <span className="mode">Historical replay · uncalibrated scores</span>
         <nav aria-label="External links">
           <a href="https://github.com/m21264551-arch/ai-disaster-response-intelligence-system">
-            Code & method ↗
+            Code ↗
           </a>
           <a href="https://m21264551.com">Portfolio ↗</a>
         </nav>
       </header>
       <main>
-        <div className="opening">
-          <div>
-            <p className="eyebrow">
-              Historical satellite detections / January 2020
-            </p>
-            <h1>
-              Rank the next hotspots.
-              <br />{" "}
-              Then inspect what happened.
-            </h1>
-          </div>
-          <p>
-            Replay a frozen model at a historical cutoff. Select the
-            highest-ranked 10% of nearby cells before revealing observed
-            detections, misses and false alarms.
-          </p>
-        </div>
+        <h1>
+          Compare hotspot forecasts with satellite observations from January
+          2020.
+        </h1>
         {loadError ? (
           <section role="alert">
             <h2>Replay unavailable</h2>
@@ -240,36 +229,27 @@ export default function App() {
             </button>
           </section>
         ) : !study ? (
-          <p role="status">
-            Loading the frozen model and observation manifest…
-          </p>
+          <p role="status">Loading replay…</p>
         ) : (
           <>
-            <div className="identity">
-              <span>
-                Model <strong>{study.modelArtifactId}</strong>
-              </span>
-              <span>Dataset {study.datasetId}</span>
-              <span>Historical replay · uncalibrated scores</span>
-            </div>
             <nav className="views" aria-label="Study views">
               <button
                 aria-pressed={view === "replay"}
                 onClick={() => setView("replay")}
               >
-                Forecast replay
+                Replay
               </button>
               <button
                 aria-pressed={view === "evaluation"}
                 onClick={() => setView("evaluation")}
               >
-                Evaluation & calibration
+                Results
               </button>
               <button
                 aria-pressed={view === "method"}
                 onClick={() => setView("method")}
               >
-                Data & method
+                Data and method
               </button>
             </nav>
             {view === "replay" && (
@@ -311,6 +291,31 @@ export default function App() {
                       ))}
                     </select>
                   </label>
+                  {currentFrame && (
+                    <div className="reveal-action">
+                      <span>
+                        Top 10% selected · {currentFrame.selectedCells.length}{" "}
+                        cells
+                      </span>
+                      <button
+                        className="primary"
+                        onClick={() => {
+                          if (currentReveal) {
+                            setRevealed(null);
+                            setFilter("selected");
+                            setTolerance(0);
+                          } else revealOutcomes();
+                        }}
+                        disabled={revealing}
+                      >
+                        {revealing
+                          ? "Loading outcomes…"
+                          : currentReveal
+                            ? "Hide observations"
+                            : "Show observations"}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {!key?.available ? (
                   <section className="unavailable" role="status">
@@ -352,56 +357,144 @@ export default function App() {
                             cells
                           </span>
                         </div>
-                        <ForecastMap
-                          frame={currentFrame}
-                          reveal={currentReveal}
-                          selected={selected}
-                          onSelect={setSelected}
-                        />
-                        <div className="legend">
-                          {currentReveal ? (
-                            <>
-                              <span>● Hit</span>
-                              <span>┄ Miss: dashed outline</span>
-                              <span>⋯ False alarm: dotted outline</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>Light → dark: higher score</span>
-                              <span>Heavy border: selected top 10%</span>
-                              <span>
-                                Maximum:{" "}
-                                {percent(
-                                  Math.max(
-                                    ...currentFrame.cells.map((c) => c.score),
-                                  ),
-                                )}
-                              </span>
-                            </>
-                          )}
+                        <div
+                          className="surface-switch"
+                          role="group"
+                          aria-label="Result view"
+                        >
+                          <button
+                            aria-pressed={surface === "map"}
+                            onClick={() => setSurface("map")}
+                          >
+                            Map
+                          </button>
+                          <button
+                            aria-pressed={surface === "table"}
+                            onClick={() => setSurface("table")}
+                          >
+                            Table
+                          </button>
                         </div>
+                        {surface === "map" ? (
+                          <>
+                            <ForecastMap
+                              frame={currentFrame}
+                              reveal={currentReveal}
+                              selected={selected}
+                              onSelect={setSelected}
+                            />
+                            <div className="legend">
+                              {currentReveal ? (
+                                <>
+                                  <span>● Hit</span>
+                                  <span>┄ Miss: dashed outline</span>
+                                  <span>⋯ False alarm: dotted outline</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>Light → dark: higher score</span>
+                                  <span>Heavy border: selected top 10%</span>
+                                  <span>
+                                    Maximum:{" "}
+                                    {percent(
+                                      Math.max(
+                                        ...currentFrame.cells.map(
+                                          (c) => c.score,
+                                        ),
+                                      ),
+                                    )}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <section className="cells-table">
+                            <div className="section-heading">
+                              <h2>Cell results</h2>
+                              <label>
+                                Show cells
+                                <select
+                                  value={filter}
+                                  onChange={(e) => setFilter(e.target.value)}
+                                >
+                                  <option value="selected">
+                                    Selected predictions
+                                  </option>
+                                  <option value="all">
+                                    All candidates and observations
+                                  </option>
+                                  {currentReveal && (
+                                    <>
+                                      <option value="hit">Hits</option>
+                                      <option value="miss">Misses</option>
+                                      <option value="false_alarm">
+                                        False alarms
+                                      </option>
+                                    </>
+                                  )}
+                                </select>
+                              </label>
+                            </div>
+                            <p className="small">
+                              {listed.length} rows. Filters do not change
+                              evaluation.
+                            </p>
+                            <div
+                              className="table-wrap cell-scroll"
+                              tabIndex={0}
+                              role="region"
+                              aria-label="Inspectable cell results"
+                            >
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>H3 cell</th>
+                                    <th>Score at +{horizon}h</th>
+                                    <th>Selected?</th>
+                                    <th>Observed comparison</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {listed.map((id) => {
+                                    const c = currentFrame.cells.find(
+                                      (v) => v.h3_id === id,
+                                    );
+                                    return (
+                                      <tr
+                                        key={`${id}:${horizon}`}
+                                        aria-selected={selected === id}
+                                      >
+                                        <th scope="row">
+                                          <button
+                                            onClick={() => setSelected(id)}
+                                            aria-label={`Inspect cell ${id}`}
+                                          >
+                                            {id}
+                                          </button>
+                                        </th>
+                                        <td>
+                                          {c ? percent(c.score) : "Not scored"}
+                                        </td>
+                                        <td>{c?.selected ? "Yes" : "No"}</td>
+                                        <td>
+                                          {currentReveal
+                                            ? statuses
+                                                .get(id)
+                                                ?.replace("_", " ") ||
+                                              "No detection / not selected"
+                                            : "Not revealed"}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </section>
+                        )}
                       </section>
                       <aside>
-                        <p className="eyebrow">Selection fixed before reveal</p>
-                        <h2>
-                          {currentFrame.selectedCells.length} cells selected
-                        </h2>
-                        <p>
-                          Ceiling of 10% of {currentFrame.cells.length}{" "}
-                          candidates. Ties resolve by H3 ID. Future detections
-                          never set this budget.
-                        </p>
-                        <button
-                          className="primary"
-                          onClick={() => revealOutcomes()}
-                          disabled={revealing}
-                        >
-                          {revealing
-                            ? "Loading outcomes…"
-                            : currentReveal
-                              ? "Recheck observed outcomes"
-                              : "Reveal observed outcomes"}
-                        </button>
                         {revealError && <p role="alert">{revealError}</p>}
                         {currentReveal && (
                           <>
@@ -432,10 +525,9 @@ export default function App() {
                               <dd>{currentReveal.summary.misses}</dd>
                             </dl>
                             <p className="small">
-                              Map statuses always use exact cells. One-ring
-                              tolerance can match several predictions to the
-                              same observation and is not comparable to
-                              exact-cell precision.
+                              Map labels use exact cells. One-ring matching can
+                              reuse observations; its metrics are a secondary
+                              comparison.
                             </p>
                           </>
                         )}
@@ -450,8 +542,8 @@ export default function App() {
                               </p>
                               <p>
                                 {cell.selected
-                                  ? "In the fixed prediction budget."
-                                  : "Outside the prediction budget."}{" "}
+                                  ? "Selected in top 10%."
+                                  : "Outside top 10%."}{" "}
                                 {statuses.get(cell.h3_id)?.replace("_", " ")}
                               </p>
                               <dl>
@@ -477,93 +569,13 @@ export default function App() {
                         </section>
                       </aside>
                     </div>
-                    <section className="cells-table">
-                      <div className="section-heading">
-                        <h2>Inspect cells without the map</h2>
-                        <label>
-                          Show cells
-                          <select
-                            value={filter}
-                            onChange={(e) => setFilter(e.target.value)}
-                          >
-                            <option value="selected">
-                              Selected predictions
-                            </option>
-                            <option value="all">
-                              All candidates and observations
-                            </option>
-                            {currentReveal && (
-                              <>
-                                <option value="hit">Hits</option>
-                                <option value="miss">Misses</option>
-                                <option value="false_alarm">
-                                  False alarms
-                                </option>
-                              </>
-                            )}
-                          </select>
-                        </label>
-                      </div>
-                      <p className="small">
-                        {listed.length} rows. Every candidate is retained for
-                        scoring; map or table filtering never changes
-                        evaluation.
-                      </p>
-                      <div
-                        className="table-wrap cell-scroll"
-                        tabIndex={0}
-                        role="region"
-                        aria-label="Inspectable cell results"
-                      >
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>H3 cell</th>
-                              <th>Score at +{horizon}h</th>
-                              <th>Selected?</th>
-                              <th>Observed comparison</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {listed.map((id) => {
-                              const c = currentFrame.cells.find(
-                                (v) => v.h3_id === id,
-                              );
-                              return (
-                                <tr
-                                  key={`${id}:${horizon}`}
-                                  aria-selected={selected === id}
-                                >
-                                  <th scope="row">
-                                    <button
-                                      onClick={() => setSelected(id)}
-                                      aria-label={`Inspect cell ${id}`}
-                                    >
-                                      {id}
-                                    </button>
-                                  </th>
-                                  <td>{c ? percent(c.score) : "Not scored"}</td>
-                                  <td>{c?.selected ? "Yes" : "No"}</td>
-                                  <td>
-                                    {currentReveal
-                                      ? statuses.get(id)?.replace("_", " ") ||
-                                        "No detection / not selected"
-                                      : "Not revealed"}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
                   </>
                 )}
               </>
             )}
             {view === "evaluation" && (
               <>
-                <h2>Same model. Same candidates. Reserved event.</h2>
+                <h2>Evaluation results</h2>
                 <p>
                   January 10–16 was already used by an earlier benchmark. This
                   is a corrected reconstruction, not newly unseen evidence.
@@ -655,7 +667,7 @@ export default function App() {
                     </svg>
                   </section>
                   <section>
-                    <h3>What the numbers leave out</h3>
+                    <h3>Missed hotspots</h3>
                     <p>
                       The model misses {study.benchmarks[horizon].model.misses}{" "}
                       observed cell/window occurrences at this budget, including{" "}
@@ -680,7 +692,17 @@ export default function App() {
             )}
             {view === "method" && (
               <section className="method">
-                <h2>From archived observations to one frozen replay</h2>
+                <h2>Data and method</h2>
+                <div className="identity">
+                  <span>
+                    Model <strong>{study.modelArtifactId}</strong>
+                  </span>
+                  <span>Dataset {study.datasetId}</span>
+                  <span>Historical replay · uncalibrated scores</span>
+                </div>
+                <p className="identity">
+                  {study.artifactId} · code {study.codeRevision.slice(0, 8)}
+                </p>
                 <h3>Data and target</h3>
                 <p>
                   The target is a satellite hotspot recorded in an H3
@@ -731,9 +753,10 @@ export default function App() {
                   A single candidate definition is used during training, scoring
                   and replay: ring 3 around recent hotspot cells, clipped by the
                   fixed NSW bounds and land mask. All candidates are scored. The
-                  highest-ranked 10% are selected before outcomes are consulted.
-                  Exact matching is primary; neighbouring-cell tolerance is a
-                  separately labelled secondary comparison.
+                  highest-ranked 10% (rounded up) are selected before outcomes
+                  are consulted. Ties resolve by H3 ID. Exact matching is
+                  primary; neighbouring-cell tolerance is a separately labelled
+                  secondary comparison.
                 </p>
                 <h3>Reproduce</h3>
                 <pre>
@@ -759,11 +782,8 @@ export default function App() {
             )}
             <footer>
               <a href={downloadURL} download="nsw-replay-v2.json">
-                Download frozen study ↓
+                Download data ↓
               </a>
-              <span>
-                {study.artifactId} · code {study.codeRevision.slice(0, 8)}
-              </span>
               <span>
                 Historical research replay · generated{" "}
                 {study.generatedAt.slice(0, 10)}
