@@ -465,3 +465,15 @@ footer {
     transition: none !important;
   }
 }
+
+/* The guide is independent of loaded data and never resets the tool. */
+.learning-guide { border-top:1px solid #d5dde1; padding:32px 0; margin-top:28px; scroll-margin-top:20px; }
+.learning-guide h2 { font-size:22px; margin:0 0 12px; }
+.learning-guide > p { max-width:85ch; color:#40515d; }
+.guide-steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:28px; padding:0 0 0 20px; margin:24px 0; }
+.guide-steps li { padding-left:4px; }
+.guide-steps h3 { font-size:15px; margin:0 0 6px; }
+.guide-steps p { margin:0; color:#40515d; }
+.learning-guide a { display:inline-flex; align-items:center; min-height:44px; text-decoration:underline; text-underline-offset:4px; }
+#tool { scroll-margin-top:16px; }
+@media(max-width:760px) { .guide-steps { grid-template-columns:1fr; gap:18px; } header { flex-wrap:wrap; } header nav { flex-wrap:wrap; } }

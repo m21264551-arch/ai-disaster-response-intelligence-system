@@ -92,6 +92,8 @@ test("unavailable model does not substitute a fixture", async ({ page }) => {
     page.getByRole("button", { name: "Reload study" }),
   ).toBeVisible();
   await expect(page.locator(".forecast-map")).toHaveCount(0);
+  await page.getByRole("link", {name:"How to use",exact:true}).click();
+  await expect(page.getByRole("heading", {name:"How to use NSW Hotspot Replay",exact:true})).toBeVisible();
 });
 for (const width of [1440, 390])
   test(`replay accessible at ${width}px`, async ({ page }) => {
@@ -136,4 +138,14 @@ test("map/table switches retain selection and hiding outcomes clears outcome fil
   await expect(
     page.getByRole("cell", { name: "Not revealed", exact: true }).first(),
   ).toBeVisible();
+});
+
+test("guide navigation keeps the current selection", async ({page})=>{
+  await page.goto("/?source=portfolio");
+  await page.getByLabel("Forecast horizon").selectOption("48"); await page.getByRole("button",{name:"Show observations",exact:true}).click(); await page.getByLabel("Metric matching").waitFor();
+  await page.getByRole("link",{name:"How to use",exact:true}).click();
+  await expect(page.getByRole("heading",{name:"How to use NSW Hotspot Replay",exact:true})).toBeVisible();
+  await page.getByRole("link",{name:"Back to tool ↑"}).click();
+  expect(new URL(page.url()).search).toBe("?source=portfolio");
+  await expect(page.getByLabel("Forecast horizon")).toHaveValue("48"); await expect(page.getByLabel("Metric matching")).toBeVisible();
 });

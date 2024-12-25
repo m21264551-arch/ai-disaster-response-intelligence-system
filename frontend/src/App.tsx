@@ -1,3 +1,4 @@
+import HowToUse from "./components/HowToUse";
 import { useEffect, useRef, useState } from "react";
 import { ForecastMap } from "./components/ForecastMap";
 import {
@@ -208,14 +209,15 @@ export default function App() {
           NSW Hotspot Replay
         </a>
         <span className="mode">Historical replay · uncalibrated scores</span>
-        <nav aria-label="External links">
+        <nav aria-label="Project links">
+          <a href="#how-to-use">How to use</a>
           <a href="https://github.com/m21264551-arch/ai-disaster-response-intelligence-system">
             Code ↗
           </a>
           <a href="https://m21264551.com">Portfolio ↗</a>
         </nav>
       </header>
-      <main>
+      <main id="tool" tabIndex={-1}>
         <h1>
           Compare hotspot forecasts with satellite observations from January
           2020.
@@ -791,6 +793,7 @@ export default function App() {
             </footer>
           </>
         )}
+      <HowToUse />
       </main>
     </>
   );
