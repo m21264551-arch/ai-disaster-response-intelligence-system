@@ -7,29 +7,56 @@ export function ForecastMap({
   frame,
   reveal,
   selected,
+  visibleIds,
   onSelect,
 }: {
   frame: Frame;
   reveal: Reveal | null;
   selected: string | null;
+  visibleIds: string[];
   onSelect: (cell: string) => void;
 }) {
-  const div = useRef<HTMLDivElement>(null),
-    map = useRef<L.Map | null>(null),
-    layer = useRef<L.LayerGroup | null>(null),
-    callback = useRef(onSelect);
+  const div = useRef<HTMLDivElement>(null);
+  const map = useRef<L.Map | null>(null);
+  const layer = useRef<L.LayerGroup | null>(null);
+  const callback = useRef(onSelect);
   const [tilesMissing, setTilesMissing] = useState(false);
   const fitKey = useRef("");
+  const needsFit = useRef(true);
   const bounds = useRef<L.LatLngBounds | null>(null);
   callback.current = onSelect;
+  const fitEvent = () => {
+    if (
+      !map.current ||
+      !bounds.current ||
+      !div.current?.clientWidth ||
+      !div.current?.clientHeight
+    )
+      return;
+    map.current.fitBounds(bounds.current, {
+      padding: [22, 22],
+      maxZoom: 8,
+      animate: false,
+    });
+    needsFit.current = false;
+  };
   useEffect(() => {
     if (!div.current) return;
+    fitKey.current = "";
+    needsFit.current = true;
     const instance = L.map(div.current, {
       scrollWheelZoom: false,
       zoomSnap: 0.25,
       zoomDelta: 0.5,
     }).setView([-34.8, 150.2], 7);
     map.current = instance;
+    const recordViewport = () => {
+      if (!div.current) return;
+      const center = instance.getCenter();
+      div.current.dataset.viewport = `${center.lat.toFixed(6)},${center.lng.toFixed(6)},${instance.getZoom()}`;
+    };
+    instance.on("moveend zoomend", recordViewport);
+    recordViewport();
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -39,13 +66,9 @@ export function ForecastMap({
       .addTo(instance);
     layer.current = L.layerGroup().addTo(instance);
     const observer = new ResizeObserver(() => {
-      instance.invalidateSize();
-      if (bounds.current)
-        instance.fitBounds(bounds.current, {
-          padding: [18, 18],
-          maxZoom: 8,
-          animate: false,
-        });
+      if (!div.current?.clientWidth || !div.current?.clientHeight) return;
+      instance.invalidateSize({ pan: false });
+      if (needsFit.current) fitEvent();
     });
     observer.observe(div.current);
     return () => {
@@ -58,67 +81,61 @@ export function ForecastMap({
     if (!layer.current || !map.current) return;
     layer.current.clearLayers();
     const statuses = new Map(
-      reveal?.comparisonCells.map((c) => [c.h3_id, c]) || [],
+      reveal?.comparisonCells.map((c) => [c.h3_id, c.status]) || [],
     );
+    const cells = new Map(frame.cells.map((c) => [c.h3_id, c]));
     const items = new Map(frame.cells.map((c) => [c.h3_id, c.geometry]));
     reveal?.comparisonCells.forEach((c) => items.set(c.h3_id, c.geometry));
+    const visible = new Set(visibleIds);
+    const labels = { hit: "Hit", miss: "Miss", false_alarm: "False alarm" };
     for (const [id, geometry] of items) {
-      const cell = frame.cells.find((c) => c.h3_id === id),
-        status = statuses.get(id)?.status;
+      if (!visible.has(id)) continue;
+      const cell = cells.get(id),
+        status = statuses.get(id);
       const color = reveal
         ? status === "hit"
-          ? "#286953"
+          ? "#24634c"
           : status === "miss"
-            ? "#9a3d57"
-            : status === "false_alarm"
-              ? "#aa641e"
-              : "#667075"
-        : `hsl(24, ${35 + (cell?.score || 0) * 55}%, ${80 - (cell?.score || 0) * 48}%)`;
+            ? "#96334f"
+            : "#a65912"
+        : `hsl(24, ${35 + (cell?.score || 0) * 55}%, ${82 - (cell?.score || 0) * 50}%)`;
       const polygon = L.geoJSON(geometry, {
         style: {
-          color: id === selected ? "#152c3b" : color,
-          weight: id === selected ? 4 : cell?.selected ? 2 : 0.7,
+          color: id === selected ? "#142d40" : color,
+          weight: id === selected ? 4 : reveal ? 2 : cell?.selected ? 2 : 0.3,
+          opacity: reveal || cell?.selected || id === selected ? 1 : 0.3,
           fillColor: color,
-          fillOpacity: reveal ? (status ? 0.65 : 0.08) : 0.65,
+          fillOpacity: reveal ? 0.7 : 0.58,
           dashArray:
-            reveal && status === "miss"
-              ? "5 3"
-              : reveal && status === "false_alarm"
-                ? "2 3"
+            status === "miss"
+              ? "7 4"
+              : status === "false_alarm"
+                ? "2 4"
                 : undefined,
+          className: `forecast-cell ${status || "candidate"}${id === selected ? " inspected" : ""}`,
         },
       });
       polygon.bindTooltip(
-        `${id} · ${status || (cell ? `score ${(cell.score * 100).toFixed(1)}%${cell.selected ? " · selected" : ""}` : "outside candidates")}`,
+        `${status ? labels[status] + " · " : ""}${cell ? `Score ${cell.score.toFixed(3)}${cell.selected ? " · top 10%" : ""}` : "Not scored · outside candidates"}`,
       );
       polygon.on("click", () => callback.current(id));
       polygon.addTo(layer.current);
     }
-    const nextFit = frame.id + String(Boolean(reveal));
-    if (fitKey.current !== nextFit) {
-      const points = [...items.values()].flatMap((g) =>
-        g.coordinates[0].map((p) => L.latLng(p[1], p[0])),
-      );
-      if (points.length) {
-        bounds.current = L.latLngBounds(points);
-        map.current.fitBounds(bounds.current, {
-          padding: [18, 18],
-          maxZoom: 8,
-          animate: false,
-        });
-      }
-      fitKey.current = nextFit;
+    const points = [...items.values()].flatMap((g) =>
+      g.coordinates[0].map((p) => L.latLng(p[1], p[0])),
+    );
+    if (points.length) bounds.current = L.latLngBounds(points);
+    if (fitKey.current !== frame.id) {
+      fitKey.current = frame.id;
+      needsFit.current = true;
     }
-    const selectedGeometry = selected && items.get(selected);
-    if (selectedGeometry) {
-      const ring = selectedGeometry.coordinates[0];
-      const lat = ring.reduce((v, p) => v + p[1], 0) / ring.length,
-        lon = ring.reduce((v, p) => v + p[0], 0) / ring.length;
-      map.current.panInside([lat, lon], { padding: [24, 24], animate: false });
-    }
-  }, [frame, reveal, selected]);
+    if (needsFit.current) fitEvent();
+  }, [frame, reveal, selected, visibleIds]);
   return (
     <div className="map-wrap">
+      <button className="fit-event" onClick={fitEvent}>
+        Fit event
+      </button>
       <div
         ref={div}
         className="forecast-map"
