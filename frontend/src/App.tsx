@@ -87,7 +87,7 @@ export default function App() {
     [revealing, setRevealing] = useState(false),
     [tolerance, setTolerance] = useState<0 | 1>(0);
   const [selected, setSelected] = useState<string | null>(null),
-    [filter, setFilter] = useState("selected"),
+    [filter, setFilter] = useState("all"),
     [view, setView] = useState("replay"),
     [surface, setSurface] = useState("map");
   const revealSequence = useRef(0);
@@ -118,7 +118,7 @@ export default function App() {
     setFrameError("");
     setSelected(null);
     setTolerance(0);
-    setFilter("selected");
+    setFilter("all");
     if (study && key?.available)
       request<Frame>("dashboard/frame", study, key, controller.signal)
         .then((data) => {
@@ -161,6 +161,7 @@ export default function App() {
         !controller.signal.aborted
       ) {
         setRevealed(data);
+        if (!currentReveal) setFilter("all");
         setTolerance(rings);
       }
     } catch (e) {
@@ -193,15 +194,37 @@ export default function App() {
   ];
   const listed = allIds
     .filter((id) =>
-      filter === "all" || filter === "selected"
-        ? filter === "all" || currentFrame?.selectedCells.includes(id)
-        : statuses.get(id) === filter,
+      filter === "all"
+        ? !currentReveal || statuses.has(id)
+        : filter === "selected"
+          ? currentFrame?.selectedCells.includes(id)
+          : statuses.get(id) === filter,
     )
     .sort(
       (a, b) =>
         (currentFrame?.cells.find((c) => c.h3_id === b)?.score || 0) -
         (currentFrame?.cells.find((c) => c.h3_id === a)?.score || 0),
     );
+  const outcomeNames: Record<string, string> = {
+    hit: "Hit",
+    miss: "Miss",
+    false_alarm: "False alarm",
+  };
+  const outcomeCounts = { hit: 0, miss: 0, false_alarm: 0 };
+  currentReveal?.comparisonCells.forEach((c) => {
+    outcomeCounts[c.status]++;
+  });
+  const changeFilter = (value: string) => {
+    setFilter(value);
+    if (
+      selected &&
+      value !== "all" &&
+      (value === "selected"
+        ? !currentFrame?.selectedCells.includes(selected)
+        : statuses.get(selected) !== value)
+    )
+      setSelected(null);
+  };
   return (
     <>
       <header>
@@ -304,7 +327,8 @@ export default function App() {
                         onClick={() => {
                           if (currentReveal) {
                             setRevealed(null);
-                            setFilter("selected");
+                            setSelected(currentFrame.selectedCells[0] || null);
+                            setFilter("all");
                             setTolerance(0);
                           } else revealOutcomes();
                         }}
@@ -347,7 +371,34 @@ export default function App() {
                 ) : (
                   <>
                     <div className="replay-layout">
-                      <section>
+                      {currentReveal && (
+                        <section
+                          className="outcome-summary"
+                          aria-label="Exact-cell outcomes"
+                          aria-live="polite"
+                        >
+                          {(["hit", "false_alarm", "miss"] as const).map(
+                            (status) => (
+                              <div key={status} className={status}>
+                                <strong>{outcomeCounts[status]}</strong>
+                                <span>
+                                  {status === "hit"
+                                    ? "Hits"
+                                    : status === "miss"
+                                      ? "Misses"
+                                      : "False alarms"}
+                                </span>
+                              </div>
+                            ),
+                          )}
+                          <p>
+                            Exact cells · all outcomes
+                            <br />
+                            Filters change the view only.
+                          </p>
+                        </section>
+                      )}
+                      <section className="map-section">
                         <div className="map-heading">
                           <h2>
                             {currentReveal
@@ -359,84 +410,87 @@ export default function App() {
                             cells
                           </span>
                         </div>
-                        <div
-                          className="surface-switch"
-                          role="group"
-                          aria-label="Result view"
-                        >
-                          <button
-                            aria-pressed={surface === "map"}
-                            onClick={() => setSurface("map")}
+                        <div className="result-controls">
+                          <div
+                            className="surface-switch"
+                            role="group"
+                            aria-label="Result view"
                           >
-                            Map
-                          </button>
-                          <button
-                            aria-pressed={surface === "table"}
-                            onClick={() => setSurface("table")}
-                          >
-                            Table
-                          </button>
-                        </div>
-                        {surface === "map" ? (
-                          <>
-                            <ForecastMap
-                              frame={currentFrame}
-                              reveal={currentReveal}
-                              selected={selected}
-                              onSelect={setSelected}
-                            />
-                            <div className="legend">
+                            <button
+                              aria-pressed={surface === "map"}
+                              onClick={() => setSurface("map")}
+                            >
+                              Map
+                            </button>
+                            <button
+                              aria-pressed={surface === "table"}
+                              onClick={() => setSurface("table")}
+                            >
+                              Table
+                            </button>
+                          </div>
+                          <label>
+                            Show cells
+                            <select
+                              value={filter}
+                              onChange={(e) => changeFilter(e.target.value)}
+                            >
+                              <option value="all">
+                                {currentReveal
+                                  ? "All outcomes"
+                                  : "All candidates"}
+                              </option>
                               {currentReveal ? (
                                 <>
-                                  <span>● Hit</span>
-                                  <span>┄ Miss: dashed outline</span>
-                                  <span>⋯ False alarm: dotted outline</span>
+                                  <option value="hit">Hits</option>
+                                  <option value="miss">Misses</option>
+                                  <option value="false_alarm">
+                                    False alarms
+                                  </option>
                                 </>
                               ) : (
-                                <>
-                                  <span>Light → dark: higher score</span>
-                                  <span>Heavy border: selected top 10%</span>
-                                  <span>
-                                    Maximum:{" "}
-                                    {percent(
-                                      Math.max(
-                                        ...currentFrame.cells.map(
-                                          (c) => c.score,
-                                        ),
-                                      ),
-                                    )}
-                                  </span>
-                                </>
+                                <option value="selected">
+                                  Selected predictions
+                                </option>
                               )}
-                            </div>
-                          </>
-                        ) : (
+                            </select>
+                          </label>
+                        </div>
+                        <div hidden={surface !== "map"}>
+                          <ForecastMap
+                            frame={currentFrame}
+                            reveal={currentReveal}
+                            selected={selected}
+                            visibleIds={listed}
+                            onSelect={setSelected}
+                          />
+                          <div className="legend">
+                            {currentReveal ? (
+                              <>
+                                <span>● Hit</span>
+                                <span>┄ Miss: dashed outline</span>
+                                <span>⋯ False alarm: dotted outline</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>Light → dark: higher score</span>
+                                <span>Heavy border: selected top 10%</span>
+                                <span>
+                                  Maximum score{" "}
+                                  {fixed(
+                                    Math.max(
+                                      ...currentFrame.cells.map((c) => c.score),
+                                    ),
+                                  )}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {surface === "table" && (
                           <section className="cells-table">
                             <div className="section-heading">
                               <h2>Cell results</h2>
-                              <label>
-                                Show cells
-                                <select
-                                  value={filter}
-                                  onChange={(e) => setFilter(e.target.value)}
-                                >
-                                  <option value="selected">
-                                    Selected predictions
-                                  </option>
-                                  <option value="all">
-                                    All candidates and observations
-                                  </option>
-                                  {currentReveal && (
-                                    <>
-                                      <option value="hit">Hits</option>
-                                      <option value="miss">Misses</option>
-                                      <option value="false_alarm">
-                                        False alarms
-                                      </option>
-                                    </>
-                                  )}
-                                </select>
-                              </label>
                             </div>
                             <p className="small">
                               {listed.length} rows. Filters do not change
@@ -476,7 +530,9 @@ export default function App() {
                                           </button>
                                         </th>
                                         <td>
-                                          {c ? percent(c.score) : "Not scored"}
+                                          {c
+                                            ? `Score ${fixed(c.score)}`
+                                            : "Not scored"}
                                         </td>
                                         <td>{c?.selected ? "Yes" : "No"}</td>
                                         <td>
@@ -498,12 +554,75 @@ export default function App() {
                       </section>
                       <aside>
                         {revealError && <p role="alert">{revealError}</p>}
+                        <section className="cell-details" aria-live="polite">
+                          <h3>Selected cell</h3>
+                          {!selected ? (
+                            <p>Select a cell on the map or in the table.</p>
+                          ) : (
+                            <>
+                              <p className="cell-outcome">
+                                {currentReveal
+                                  ? outcomeNames[
+                                      statuses.get(selected) || ""
+                                    ] || "No observed detection"
+                                  : cell?.selected
+                                    ? "Top 10% selected"
+                                    : "Outside top 10%"}
+                              </p>
+                              <p className="cell-score">
+                                {cell
+                                  ? `Score ${fixed(cell.score)}`
+                                  : "Not scored"}
+                              </p>
+                              <p className="small">
+                                Uncalibrated score · +{horizon}h
+                              </p>
+                              {currentReveal && cell && (
+                                <p>
+                                  {cell.selected
+                                    ? "Selected at the cutoff."
+                                    : "Not selected at the cutoff."}
+                                </p>
+                              )}
+                              {!cell && (
+                                <p>
+                                  This observed cell is outside the candidate
+                                  set. It counts as a miss and has no model
+                                  score.
+                                </p>
+                              )}
+                              <details>
+                                <summary>Cell details</summary>
+                                <code>{selected}</code>
+                                {cell && (
+                                  <>
+                                    <dl>
+                                      <dt>Recent detections</dt>
+                                      <dd>{cell.recentCount}</dd>
+                                      <dt>Nearest observed hotspot</dt>
+                                      <dd>
+                                        {cell.nearestHotspotKm.toFixed(1)} km
+                                      </dd>
+                                    </dl>
+                                    <p className="small">
+                                      {cell.weatherMissing
+                                        ? "Weather has missing features; no synthetic values were inserted."
+                                        : `Weather available under the study's lag rule: ${cell.weatherAvailableAt ? timestamp(cell.weatherAvailableAt) : "unavailable"}.`}
+                                    </p>
+                                  </>
+                                )}
+                              </details>
+                            </>
+                          )}
+                        </section>
                         {currentReveal && (
-                          <>
+                          <details className="advanced-comparison">
+                            <summary>Advanced comparison</summary>
                             <label className="tolerance">
                               Metric matching
                               <select
                                 value={tolerance}
+                                disabled={revealing}
                                 onChange={(e) =>
                                   revealOutcomes(+e.target.value as 0 | 1)
                                 }
@@ -521,54 +640,15 @@ export default function App() {
                               </dd>
                               <dt>Recall</dt>
                               <dd>{percent(currentReveal.summary.recall)}</dd>
-                              <dt>False alarms</dt>
-                              <dd>{currentReveal.summary.falseAlarms}</dd>
-                              <dt>Missed observed cells</dt>
-                              <dd>{currentReveal.summary.misses}</dd>
                             </dl>
                             <p className="small">
-                              Map labels use exact cells. One-ring matching can
-                              reuse observations; its metrics are a secondary
+                              The map, table and counts above always use exact
+                              cells. One-ring matching can reuse observations;
+                              its precision and recall are a secondary
                               comparison.
                             </p>
-                          </>
+                          </details>
                         )}
-                        <section className="cell-details" aria-live="polite">
-                          <h3>Selected cell</h3>
-                          <code>{selected || "Select a cell"}</code>
-                          {cell ? (
-                            <>
-                              <p>
-                                <strong>{percent(cell.score)} score</strong> · +
-                                {cell.horizon}h
-                              </p>
-                              <p>
-                                {cell.selected
-                                  ? "Selected in top 10%."
-                                  : "Outside top 10%."}{" "}
-                                {statuses.get(cell.h3_id)?.replace("_", " ")}
-                              </p>
-                              <dl>
-                                <dt>Recent detections</dt>
-                                <dd>{cell.recentCount}</dd>
-                                <dt>Nearest observed hotspot</dt>
-                                <dd>{cell.nearestHotspotKm.toFixed(1)} km</dd>
-                              </dl>
-                              <p className="small">
-                                {cell.weatherMissing
-                                  ? "Weather has missing features; no synthetic values were inserted."
-                                  : `Weather available under the study's lag rule: ${cell.weatherAvailableAt ? timestamp(cell.weatherAvailableAt) : "unavailable"}.`}
-                              </p>
-                            </>
-                          ) : (
-                            selected && (
-                              <p>
-                                This observed cell is outside the candidate set.
-                                It counts as a miss and has no model score.
-                              </p>
-                            )
-                          )}
-                        </section>
                       </aside>
                     </div>
                   </>
@@ -651,7 +731,7 @@ export default function App() {
                             fill="#964c29"
                           >
                             <title>
-                              {p.n} rows: score {percent(p.meanScore)}, observed{" "}
+                              {p.n} rows: score {fixed(p.meanScore)}, observed{" "}
                               {percent(p.observedFraction)}
                             </title>
                           </circle>
@@ -793,7 +873,7 @@ export default function App() {
             </footer>
           </>
         )}
-      <HowToUse />
+        <HowToUse />
       </main>
     </>
   );
