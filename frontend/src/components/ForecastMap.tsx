@@ -48,6 +48,7 @@ export function ForecastMap({
       scrollWheelZoom: false,
       zoomSnap: 0.25,
       zoomDelta: 0.5,
+      dragging: !L.Browser.mobile,
     }).setView([-34.8, 150.2], 7);
     map.current = instance;
     const recordViewport = () => {
@@ -65,10 +66,22 @@ export function ForecastMap({
       .on("tileerror", () => setTilesMissing(true))
       .addTo(instance);
     layer.current = L.layerGroup().addTo(instance);
+    let previousSize = "";
     const observer = new ResizeObserver(() => {
       if (!div.current?.clientWidth || !div.current?.clientHeight) return;
+      const size = `${div.current.clientWidth}:${div.current.clientHeight}`;
+      // Hidden presentations return to the same map, without resetting its tiles.
+      if (size === previousSize) return;
+      previousSize = size;
+      const center = instance.getCenter(), zoom = instance.getZoom();
       instance.invalidateSize({ pan: false });
       if (needsFit.current) fitEvent();
+      else {
+        // Leaflet supports reset in setView; its ZoomPanOptions type omits it.
+        // A full size reset preserves the exact centre, avoiding rounded panning.
+        const options: L.ZoomPanOptions & { reset: boolean } = { animate: false, reset: true };
+        instance.setView(center, zoom, options);
+      }
     });
     observer.observe(div.current);
     return () => {
@@ -98,7 +111,7 @@ export function ForecastMap({
           : status === "miss"
             ? "#96334f"
             : "#a65912"
-        : `hsl(24, ${35 + (cell?.score || 0) * 55}%, ${82 - (cell?.score || 0) * 50}%)`;
+        : `hsl(27, ${20 + (cell?.score || 0) * 30}%, ${88 - (cell?.score || 0) * 48}%)`;
       const polygon = L.geoJSON(geometry, {
         style: {
           color: id === selected ? "#142d40" : color,
