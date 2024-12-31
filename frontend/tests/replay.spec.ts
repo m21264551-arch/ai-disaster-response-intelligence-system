@@ -10,7 +10,7 @@ test("horizon-specific scores, reveal clearing, and missing coverage", async ({
     .click();
   await page.getByRole("region", { name: "Exact-cell outcomes" }).waitFor();
   await page.getByRole("button", { name: "Table", exact: true }).click();
-  await page.getByLabel("Show cells").selectOption("miss");
+  await page.getByRole("region",{name:"Exact-cell outcomes"}).getByRole("button",{name:/Misses/}).click();
   await page
     .getByRole("button", { name: "Inspect cell", exact: false })
     .first()
@@ -123,7 +123,7 @@ test("map/table switches retain selection and hiding outcomes clears outcome fil
     .click();
   await page.getByRole("region", { name: "Exact-cell outcomes" }).waitFor();
   await page.getByRole("button", { name: "Table", exact: true }).click();
-  await page.getByLabel("Show cells").selectOption("miss");
+  await page.getByRole("region",{name:"Exact-cell outcomes"}).getByRole("button",{name:/Misses/}).click();
   await page
     .getByRole("button", { name: /Inspect cell/ })
     .first()
@@ -138,7 +138,7 @@ test("map/table switches retain selection and hiding outcomes clears outcome fil
   await page.getByRole("button", { name: "Table", exact: true }).click();
   await expect(page.getByLabel("Show cells")).toHaveValue("all");
   await expect(
-    page.getByRole("cell", { name: "Not revealed", exact: true }).first(),
+    page.getByRole("rowheader", { name: "In forecast", exact: true }).first(),
   ).toBeVisible();
 });
 
@@ -192,7 +192,7 @@ test("outcome filters share map/table cells without changing counts or viewport"
     const ids = result.comparisonCells
       .filter((c: { status: string }) => c.status === status)
       .map((c: { h3_id: string }) => c.h3_id);
-    await page.getByLabel("Show cells").selectOption(status);
+    await summary.getByRole("button",{name:status === "hit" ? /Hits/ : status === "miss" ? /Misses/ : /False alarms/}).click();
     await expect(page.locator(".forecast-cell")).toHaveCount(ids.length);
     await expect(page.locator(`.forecast-cell.${status}`)).toHaveCount(
       ids.length,
@@ -200,7 +200,7 @@ test("outcome filters share map/table cells without changing counts or viewport"
     await expect(map).toHaveAttribute("data-viewport", viewport!);
     await page.getByRole("button", { name: "Table", exact: true }).click();
     const buttons = page.locator(".cell-scroll tbody button");
-    expect((await buttons.allTextContents()).sort()).toEqual(ids.sort());
+    expect((await buttons.evaluateAll(nodes=>nodes.map(n=>n.getAttribute("aria-label")!.replace("Inspect cell ","")))).sort()).toEqual(ids.sort());
     await buttons.first().press("Enter");
     await expect(page.locator(".cell-details .cell-outcome")).toHaveText(
       status === "hit" ? "Hit" : status === "miss" ? "Miss" : "False alarm",
@@ -283,13 +283,13 @@ test('outcome count buttons filter both views and sections retain the map instan
  const summary=page.getByRole('region',{name:'Exact-cell outcomes'});await summary.waitFor();
  const totals=await summary.textContent();
  await summary.getByRole('button',{name:/Misses/}).click();
- await expect(page.getByLabel('Show cells')).toHaveValue('miss');
+ await expect(summary.getByRole('button',{name:/Misses/})).toHaveAttribute('aria-pressed','true');
  const viewport=await map.getAttribute('data-viewport');
  await page.getByRole('button',{name:'Table',exact:true}).click();
  await page.getByRole('button',{name:'Results',exact:true}).click();
  await page.getByRole('button',{name:'Data and method',exact:true}).click();
  await page.getByRole('button',{name:'Replay',exact:true}).click();
- await expect(page.getByLabel('Show cells')).toHaveValue('miss');
+ await expect(summary.getByRole('button',{name:/Misses/})).toHaveAttribute('aria-pressed','true');
  await page.getByRole('button',{name:'Map',exact:true}).click();
  await expect(map).toHaveAttribute('data-instance-test','original');
  await expect(map).toHaveAttribute('data-viewport',viewport!);
@@ -300,4 +300,33 @@ test('outcome count buttons filter both views and sections retain the map instan
  await expect(page.getByLabel('Show cells')).toHaveValue('all');
  await page.getByRole('button',{name:'Previous cutoff',exact:true}).click();
  await expect(page.getByLabel('Historical cutoff')).toHaveValue(cutoff);
+});
+
+
+test('explicit cell zoom preserves viewport through reveal and presentation changes',async({page})=>{
+ await page.goto('/');const map=page.locator('.forecast-map');await map.waitFor();
+ const event=await map.getAttribute('data-viewport');
+ await page.getByRole('button',{name:'Zoom to cell',exact:true}).click();
+ await expect(map).not.toHaveAttribute('data-viewport',event!);
+ const focused=await map.getAttribute('data-viewport');
+ await page.getByRole('button',{name:'Show observations',exact:true}).click();
+ const summary=page.getByRole('region',{name:'Exact-cell outcomes'});await summary.waitFor();
+ await expect(map).toHaveAttribute('data-viewport',focused!);
+ await expect(page.getByLabel('Show cells')).toHaveCount(0);
+ await page.getByRole('button',{name:'Table',exact:true}).click();
+ await page.getByRole('button',{name:/Inspect cell/}).first().click();
+ await expect(page.getByRole('heading',{name:'Inspecting cell',exact:true})).toBeFocused();
+ await page.getByRole('button',{name:'Show on map',exact:true}).click();
+ await expect(map).toBeFocused();
+ await expect(page.getByRole('button',{name:'Map',exact:true})).toHaveAttribute('aria-pressed','true');
+});
+
+test('mobile map movement is opt-in and Escape restores page scrolling',async({page})=>{
+ await page.setViewportSize({width:390,height:844});await page.goto('/');
+ const map=page.locator('.forecast-map');await expect(map).toHaveAttribute('data-movement','page-scroll');
+ await page.getByRole('button',{name:'Move map',exact:true}).click();
+ await expect(map).toHaveAttribute('data-movement','enabled');
+ await page.getByRole('button',{name:'Done moving',exact:true}).press('Escape');
+ await expect(map).toHaveAttribute('data-movement','page-scroll');
+ await expect(page.getByRole('button',{name:'Move map',exact:true})).toHaveAttribute('aria-pressed','false');
 });
