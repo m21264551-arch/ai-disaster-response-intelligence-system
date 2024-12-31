@@ -61,7 +61,7 @@ Public schema v2:
 - `GET /api/v2/download`: complete frozen experiment.
 - `GET /api/health`: model/data readiness and identities.
 
-Allocation and current-incident routes are retired from the public contract. `app/legacy_demo.py` and older services remain an **unserved regression harness** for existing fixtures; the production entrypoint never imports or mounts them. React uses AbortController and generation checks to reject late frame/reveal responses. Cell selection is keyed by H3 ID and horizon.
+Allocation and current-incident routes are retired from the public contract. `app/legacy_demo.py` and older services remain an **unserved regression harness** for existing fixtures; the production entrypoint never imports or mounts them. React uses AbortController and generation checks to reject late frame/reveal responses. Cell selection is keyed by H3 ID and horizon. **Inspecting cell** distinguishes the visitor’s selection from inclusion in the top-10% forecast. **Zoom to cell** is explicit; filtering, reveal and Map/Table switches preserve the viewport. On phones, **Move map** temporarily enables dragging and pinching; **Done moving** or Escape restores page scrolling.
 
 ## Setup, reproduction and checks
 
@@ -76,7 +76,7 @@ make test
 make build
 cd frontend
 npx playwright install chromium
-PYTHON=../.venv/bin/python npm run test:browser
+PYTHON="$(pwd)/../.venv/bin/python" npm run test:browser
 ```
 
 For local browsing, run `PYTHONPATH=.:backend .venv/bin/python -m uvicorn api.index:app --port 8008`, then `npm --prefix frontend run dev`. Vite proxies `/api` to that server.
