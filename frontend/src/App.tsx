@@ -92,6 +92,7 @@ export default function App() {
     [surface, setSurface] = useState("map");
   const [focusRequest, setFocusRequest] = useState<{cell: string; nonce: number} | null>(null);
   const focusSequence = useRef(0);
+  const retryFocus = useRef(false);
   function locateCell(id: string) {
     setSelected(id); setSurface("map");
     setFocusRequest({cell:id,nonce:++focusSequence.current});
@@ -137,6 +138,7 @@ export default function App() {
           if (token === generation.current) {
             setFrame(data);
             setSelected(data.selectedCells[0] || null);
+            if (retryFocus.current) { retryFocus.current=false; requestAnimationFrame(()=>document.getElementById("historical-cutoff")?.focus()); }
           }
         })
         .catch((e) => {
@@ -226,6 +228,7 @@ export default function App() {
   currentReveal?.comparisonCells.forEach((c) => {
     outcomeCounts[c.status]++;
   });
+  const benchmark = study?.benchmarks[String(horizon)];
   const changeFilter = (value: string) => {
     setFilter(value);
     if (
@@ -280,8 +283,8 @@ export default function App() {
         {loadError ? (
           <section className="workspace-message" role="alert">
             <h2>Replay unavailable</h2>
-            <p>{loadError}</p>
-            <button onClick={() => setReload((v) => v + 1)}>
+            <p>The saved replay could not be loaded. Try again, or read the guide below.</p><details><summary>Technical details</summary><p>{loadError}</p></details>
+            <button onClick={() => { retryFocus.current=true; setReload((v) => v + 1); }}>
               Reload study
             </button>
           </section>
@@ -294,7 +297,7 @@ export default function App() {
                   <div className="cutoff-control"><label>
                     Historical cutoff
                     <select
-                      value={timeIndex}
+                      id="historical-cutoff" value={timeIndex}
                       onChange={(e) => setTimeIndex(+e.target.value)}
                     >
                       {times.map((time, i) => (
@@ -311,9 +314,10 @@ export default function App() {
                       type="range"
                       min="0"
                       max={Math.max(0, times.length - 1)}
-                      value={timeIndex}
+                      aria-valuetext={times[timeIndex] ? timestamp(times[timeIndex]) : "Unavailable"} value={timeIndex}
                       onChange={(e) => setTimeIndex(+e.target.value)}
                     />
+                    <span className="timeline-endpoints"><span>{times[0] ? timestamp(times[0]).split(",")[0] : ""}</span><span>{times[times.length-1] ? timestamp(times[times.length-1]).split(",")[0] : ""}</span></span>
                   </label>
                   <label>
                     Forecast horizon
@@ -374,7 +378,7 @@ export default function App() {
                   <section className="workspace-message" role="alert">
                     <h2>Frame unavailable</h2>
                     <p>{frameError}</p>
-                    <button onClick={() => setReload((v) => v + 1)}>
+                    <button onClick={() => { retryFocus.current=true; setReload((v) => v + 1); }}>
                       Reload study
                     </button>
                   </section>
@@ -403,7 +407,7 @@ export default function App() {
                               </button>
                             ),
                           )}
-                          <button className="all-outcomes" aria-pressed={filter === "all"} onClick={()=>changeFilter("all")}>All outcomes</button><p>Exact-cell counts · filters change the view only</p>
+                          <button className="all-outcomes" aria-pressed={filter === "all"} onClick={()=>changeFilter("all")}>All outcomes</button><p className="outcome-reading">{outcomeCounts.hit} of {outcomeCounts.hit + outcomeCounts.false_alarm} forecast cells matched observations. {outcomeCounts.miss} observed cells were missed. Filters change the view only.</p>
                         </section>
                       )}
                       <section className="map-section">
@@ -512,7 +516,7 @@ export default function App() {
                                       >
                                         <th scope="row">{currentReveal ? outcomeNames[statuses.get(id) || ""] || "No detection" : c?.selected ? "In forecast" : "Not in forecast"}</th>
                                         <td>{c ? `Score ${fixed(c.score)}` : "Not scored"}</td>
-                                        <td><button onClick={() => inspectCell(id)} aria-label={`Inspect cell ${id}`}>Details</button></td>
+                                        <td><button onClick={() => inspectCell(id)} aria-label={`Inspect cell ${id}`}><span className="cell-short-id">{id.slice(-7)}</span> · Details</button></td>
                                       </tr>
                                     );
                                   })}
@@ -539,13 +543,14 @@ export default function App() {
                                     ? "Included in forecast"
                                     : "Not included in forecast"}
                               </p>
+                              {cell && <p className="cell-rank">Rank {1 + currentFrame.cells.filter(c=>c.score>cell.score).length} of {currentFrame.cells.length}</p>}
                               <p className="cell-score">
                                 {cell
                                   ? `Score ${fixed(cell.score)}`
                                   : "Not scored"}
                               </p>
                               <p className="small">
-                                Uncalibrated score · +{horizon}h
+                                Uncalibrated score · +{horizon}h · rank ties share a position
                               </p>
                               {currentReveal && cell && (
                                 <p>
@@ -649,6 +654,7 @@ export default function App() {
                   </select>
                 </label>
                 <ScoreTable scores={study.benchmarks[horizon]} />
+                {benchmark && <p className="benchmark-reading">At {horizon} hours, the model's average precision is {fixed(benchmark.model.averagePrecision)}, compared with {fixed(benchmark.spread.averagePrecision)} for the spread heuristic. {benchmark.model.averagePrecision! < benchmark.spread.averagePrecision! ? "The simpler heuristic ranks observed hotspots better on this benchmark." : "The model ranks observed hotspots better on this benchmark."} Brier score measures probability error (model {fixed(benchmark.model.brier)}, spread {fixed(benchmark.spread.brier)}; lower is better). This existing event benchmark does not establish performance on a new fire event.</p>}
                 <p className="small">
                   AP and Brier use all candidate cells. Recall includes observed
                   cells outside the candidate set. Precision/recall use a

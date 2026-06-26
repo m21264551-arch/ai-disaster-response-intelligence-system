@@ -130,7 +130,7 @@ export function ForecastMap({
           weight: id === selected ? 4 : reveal ? 2 : cell?.selected ? 2 : 0.6,
           opacity: reveal || cell?.selected || id === selected ? 1 : 0.5,
           fillColor: color,
-          fillOpacity: reveal ? 0.7 : 0.58,
+          fillOpacity: reveal ? 0.7 : cell?.selected ? 0.8 : 0.42,
           dashArray:
             status === "miss"
               ? "7 4"

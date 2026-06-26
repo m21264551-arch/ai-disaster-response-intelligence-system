@@ -330,3 +330,24 @@ test('mobile map movement is opt-in and Escape restores page scrolling',async({p
  await expect(map).toHaveAttribute('data-movement','page-scroll');
  await expect(page.getByRole('button',{name:'Move map',exact:true})).toHaveAttribute('aria-pressed','false');
 });
+
+test('revealed summary explains misses and the expanded inspector leaves attribution exposed',async({page})=>{
+ await page.setViewportSize({width:1280,height:720});await page.goto('/');
+ await expect(page.locator('.cell-rank')).toContainText('Rank 1 of 481');
+ await page.getByRole('button',{name:'Show observations',exact:true}).click();
+ await expect(page.locator('.outcome-reading')).toContainText('20 of 49 forecast cells matched');
+ await expect(page.locator('.outcome-reading')).toContainText('20 observed cells were missed');
+ await page.getByText('Cell details',{exact:true}).click();await page.getByText('Advanced comparison',{exact:true}).click();
+ const attribution=page.locator('.leaflet-control-attribution');
+ expect(await attribution.evaluate(el=>{const b=el.getBoundingClientRect();return el.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2));})).toBe(true);
+ const panel=await page.locator('.cell-inspector').boundingBox(),map=await page.locator('.forecast-map').boundingBox();
+ expect(panel!.y+panel!.height).toBeLessThan(map!.y+map!.height-20);
+ await page.getByRole('button',{name:'Table',exact:true}).click();
+ await expect(page.locator('.cell-short-id').first()).toHaveText(/^[0-9a-f]{7}$/);
+});
+test('study retry restores keyboard focus after frame loading',async({page})=>{
+ await page.route('**/api/v2/study',r=>r.fulfill({status:503,body:'{}'}));await page.goto('/');
+ await expect(page.getByRole('button',{name:'Reload study'})).toBeVisible();
+ await page.unroute('**/api/v2/study');await page.getByRole('button',{name:'Reload study'}).click();
+ await expect(page.getByLabel('Historical cutoff')).toBeFocused();
+});
