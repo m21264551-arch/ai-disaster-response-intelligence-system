@@ -4,23 +4,11 @@ This project is a portfolio/demo system. It is not an official emergency-respons
 
 The root MIT license applies to this repository's original source code and documentation. Public data samples and derived artifacts retain the attribution and license context of their upstream sources.
 
-## Included Data Artifacts
+## Public replay inputs and outputs
 
-The repository includes compact historical samples and derived model artifacts so the demo is reproducible without live credentials:
+The active pipeline consumes `backend/app/data/replay_training_dea.csv`, `replay_evaluation_dea.csv`, their retrieval receipts, and `bom_weather_observations_sample.csv`. Its frozen output lives in `backend/app/replay/artifacts/`: model, features and schema-v2 results. Query coverage and checksums are recorded in the bundle. These are satellite detections, not authoritative incident records.
 
-- `backend/app/data/historical_hotspots_sample.csv`
-- `backend/app/data/heldout_hotspots_sample.csv`
-- `backend/app/data/multiseason_national_hotspots_sample.csv`
-- `backend/app/data/multiseason_national_manifest.json`
-- `backend/app/data/bom_weather_observations_sample.csv`
-- `backend/app/data/abs_population_h3_sample.csv`
-- `backend/app/ml/artifacts/training_dataset.csv`
-- `backend/app/ml/artifacts/heldout_dataset.csv`
-- `backend/app/ml/artifacts/heldout_predictions.csv`
-- `backend/app/ml/artifacts/*.json`
-- `backend/app/ml/artifacts/bushfire_risk_model.joblib`
-
-These are demonstration artifacts derived from public hotspot data. They are not authoritative incident records.
+Earlier files under `app/data` and `app/ml/artifacts`, plus optional NASA/RFS/ABS/OSM ingestion scripts, remain legacy experiments and test fixtures. They do not supply the public replay. The public interface has no population/exposure layer or incident feed.
 
 ## Digital Earth Australia Hotspots
 
@@ -43,7 +31,7 @@ The demo supports the NSW RFS public incident GeoJSON feed:
 - License: Creative Commons Attribution
 - Requested attribution: © State of New South Wales (NSW Rural Fire Service). For current information go to www.rfs.nsw.gov.au.
 
-The local default mode uses deterministic replay fixtures, so the public repository does not depend on this live feed to render the dashboard.
+This optional legacy feed adapter is not part of the public replay.
 
 ## NASA FIRMS
 
@@ -92,7 +80,7 @@ The weather feature join uses public Bureau of Meteorology daily evapotranspirat
 - Included derived artifact: `backend/app/data/bom_weather_observations_sample.csv`
 - Attribution: Australian Government Bureau of Meteorology
 
-The committed sample covers selected NSW, VIC, QLD, SA, and WA stations from November 2019 through January 2020. Feature generation only joins observations from completed days before the prediction timestamp.
+The committed sample covers selected NSW, VIC, QLD, SA, and WA stations from November 2019 through January 2020. The public pipeline treats each daily record as available at 00:00 UTC two days after its date. Historical publication timestamps are unavailable, so this is an explicit conservative assumption. Missing measurements remain missing; the model does not substitute invented weather.
 
 Security note: the optional downloader uses BoM's public FTP table endpoint because a working HTTPS mirror was not available during this build. Treat fresh downloads as unauthenticated public-feed input: run them from a trusted network, review the resulting CSV diff before replacing the committed sample, and keep the committed sample for reproducible public demos.
 

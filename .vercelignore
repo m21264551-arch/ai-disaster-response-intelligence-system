@@ -16,3 +16,6 @@ docs
 *.pyo
 *.log
 .DS_Store
+backend/app/data
+backend/app/ml/artifacts
+backend/app/replay/artifacts/training-features.csv

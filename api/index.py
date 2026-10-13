@@ -13,7 +13,7 @@ if str(BACKEND_DIR) not in sys.path:
 from app.main import app as backend_app  # noqa: E402
 from app.security import SecurityHeadersMiddleware  # noqa: E402
 
-app = FastAPI(title="AI Disaster-Response Intelligence System")
+app = FastAPI(title="NSW Bushfire Forecast Replay")
 app.mount("/api", backend_app)
 app.add_middleware(SecurityHeadersMiddleware)
 
