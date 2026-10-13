@@ -158,7 +158,7 @@ download-osm: bootstrap
 		--out backend/app/data/osm_infrastructure_sample.csv
 
 test: bootstrap
-	PYTHONPATH=backend $(VENV_PYTHON) -m pytest backend/tests -q
+	PYTHONPATH=.:backend $(VENV_PYTHON) -m pytest backend/tests -q
 
 build: bootstrap
 	npm --prefix frontend run build
@@ -170,3 +170,6 @@ audit: install-dev
 	npm --prefix frontend audit --omit=dev
 
 check: test build
+
+replay: bootstrap
+	PYTHONPATH=backend $(VENV_PYTHON) -m app.replay.pipeline

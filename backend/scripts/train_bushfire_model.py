@@ -41,14 +41,15 @@ def main() -> None:
         candidate_ring=args.candidate_ring,
     )
     dataset = dataset.sort_values("prediction_time").reset_index(drop=True)
-    split_index = max(1, int(len(dataset) * 0.72))
-    train = dataset.iloc[:split_index]
-    test = dataset.iloc[split_index:]
-
-    if test["label"].nunique() < 2:
-        split_index = max(1, int(len(dataset) * 0.6))
-        train = dataset.iloc[:split_index]
-        test = dataset.iloc[split_index:]
+    # Keep complete timestamp groups together and purge every 72-hour outcome window.
+    import pandas as pd
+    times = pd.to_datetime(dataset["prediction_time"], utc=True)
+    cutoffs = sorted(times.unique())
+    split_at = cutoffs[min(len(cutoffs)-1, int(len(cutoffs)*0.72))]
+    train = dataset.loc[times + pd.Timedelta(hours=72) < split_at]
+    test = dataset.loc[times >= split_at]
+    if train.empty or test.empty or train["label"].nunique() < 2:
+        raise ValueError("Insufficient covered history for a purged timestamp split; acquire a longer window")
 
     model, model_version = build_model(args.model_family, train["label"])
     model.fit(train[FEATURE_COLUMNS], train["label"])

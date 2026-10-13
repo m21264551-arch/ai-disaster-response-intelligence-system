@@ -1,712 +1,777 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, BarChart3, Eye, EyeOff, Flame, Loader2, RadioTower } from "lucide-react";
-import { api } from "./lib/api";
-import type {
-  AllocateResponse,
-  DashboardBootstrapResponse,
-  DashboardFrameResponse,
-  HeldoutEvaluation,
-  Horizon,
-  Hotspot,
-  Incident,
-  ModelMetrics,
-  PredictionResponse,
-  RevealResponse,
-  ReplayEvent,
-} from "./lib/types";
-import { AllocationPanel } from "./components/AllocationPanel";
-import { AppSidebar, type AppSectionId } from "./components/AppSidebar";
-import { EvidenceStrip } from "./components/EvidenceStrip";
-import { HeldoutPanel } from "./components/HeldoutPanel";
-import { HorizonControl } from "./components/HorizonControl";
-import { InfoTip } from "./components/InfoTip";
-import { IncidentPanel } from "./components/IncidentPanel";
-import { MetricsStrip } from "./components/MetricsStrip";
-import { REPLAY_STEPS, ReplayTimeline } from "./components/ReplayTimeline";
-import { TopBar } from "./components/TopBar";
-import { timeLabel } from "./lib/format";
+import { useEffect, useRef, useState } from "react";
+import { ForecastMap } from "./components/ForecastMap";
+import {
+  getStudy,
+  request,
+  downloadURL,
+  type Frame,
+  type Study,
+  type Reveal,
+  type Horizon,
+  type Scores,
+} from "./lib/replay";
 
-const MapPanel = lazy(() => import("./components/MapPanel").then((module) => ({ default: module.MapPanel })));
+const timestamp = (s: string) =>
+  new Date(s).toLocaleString("en-AU", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+    hour12: false,
+  }) + " UTC";
+const percent = (v: number | null | undefined) =>
+  v == null ? "Undefined" : `${(v * 100).toFixed(1)}%`;
+const fixed = (v: number | null) => (v == null ? "Undefined" : v.toFixed(3));
+const names: Record<string, string> = {
+  model: "Frozen gradient boosting",
+  persistence: "Recent-cell persistence",
+  prevalence: "Training prevalence",
+  spread: "Fixed-bearing spread heuristic",
+};
 
-const EVENT_ID = "nsw-black-summer-south-coast";
-const DEFAULT_START = "2020-01-05T00:00:00.000Z";
-const HOTSPOT_LOOKBACK_START = "2020-01-04T00:00:00.000Z";
-const METRICS_RUN_ID = "demo-black-summer-v0";
-const DEFAULT_BBOX = [148.7, -37.4, 153.8, -31.1];
-const HORIZONS: Horizon[] = [24, 48, 72];
-const APP_SECTION_IDS: AppSectionId[] = ["operations", "risk", "exposure", "pipelines", "evaluation", "lineage"];
-const PREFETCH_STEPS = 2;
-let dashboardBootstrapPromise: Promise<DashboardBootstrapResponse> | null = null;
-
-function normalizeReplayTime(value: string) {
-  return new Date(value).toISOString();
-}
-
-function allocationCacheKey(startTime: string, horizon: Horizon) {
-  return `${normalizeReplayTime(startTime)}:${horizon}`;
-}
-
-function revealCacheKey(startTime: string, horizon: Horizon) {
-  return `${normalizeReplayTime(startTime)}:${horizon}`;
-}
-
-function sectionFromHash(hash: string): AppSectionId | null {
-  const section = hash.replace(/^#section-/, "");
-  return APP_SECTION_IDS.includes(section as AppSectionId) ? (section as AppSectionId) : null;
-}
-
-function sectionHash(section: AppSectionId) {
-  return `#section-${section}`;
-}
-
-function orderedReplaySteps(anchorTime: string, limit = PREFETCH_STEPS) {
-  const activeIndex = Math.max(0, REPLAY_STEPS.findIndex((step) => normalizeReplayTime(step) === normalizeReplayTime(anchorTime)));
-  const stepCount = Math.min(limit, REPLAY_STEPS.length - 1);
-  return Array.from({ length: stepCount }, (_value, index) => {
-    const nextIndex = (activeIndex + index + 1) % REPLAY_STEPS.length;
-    return normalizeReplayTime(REPLAY_STEPS[nextIndex]);
-  });
-}
-
-function fetchDashboardBootstrap() {
-  dashboardBootstrapPromise ??= api
-    .bootstrap(DEFAULT_BBOX, DEFAULT_START, HORIZONS, EVENT_ID, HOTSPOT_LOOKBACK_START, METRICS_RUN_ID)
-    .catch((loadError) => {
-      dashboardBootstrapPromise = null;
-      throw loadError;
-    });
-  return dashboardBootstrapPromise;
+function ScoreTable({ scores }: { scores: Record<string, Scores> }) {
+  return (
+    <div
+      className="table-wrap"
+      role="region"
+      aria-label="Model and baseline metrics"
+      tabIndex={0}
+    >
+      <table>
+        <thead>
+          <tr>
+            {[
+              "Method",
+              "Precision ↑",
+              "Recall ↑",
+              "AP ↑",
+              "Brier ↓",
+              "False alarms",
+              "Misses",
+            ].map((h) => (
+              <th key={h}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(scores).map(([key, s]) => (
+            <tr key={key}>
+              <th scope="row">{names[key]}</th>
+              <td>{percent(s.precision)}</td>
+              <td>{percent(s.recall)}</td>
+              <td>{fixed(s.averagePrecision)}</td>
+              <td>{fixed(s.brier)}</td>
+              <td>{s.falseAlarms}</td>
+              <td>{s.misses}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export default function App() {
-  const [horizon, setHorizon] = useState<Horizon>(24);
-  const [activeSection, setActiveSection] = useState<AppSectionId>(() =>
-    typeof window === "undefined" ? "operations" : sectionFromHash(window.location.hash) ?? "operations",
-  );
-  const [selectedH3Id, setSelectedH3Id] = useState<string | null>(null);
-  const [replayTime, setReplayTime] = useState(DEFAULT_START);
-  const [replay, setReplay] = useState<ReplayEvent | null>(null);
-  const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [hotspots, setHotspots] = useState<Hotspot[]>([]);
-  const [frameLoading, setFrameLoading] = useState(false);
-  const [readyFrameKeys, setReadyFrameKeys] = useState<Set<string>>(() => new Set());
-  const [allocation, setAllocation] = useState<AllocateResponse | null>(null);
-  const [allocationLoading, setAllocationLoading] = useState(false);
-  const [allocationError, setAllocationError] = useState<string | null>(null);
-  const [metrics, setMetrics] = useState<ModelMetrics | null>(null);
-  const [heldout, setHeldout] = useState<HeldoutEvaluation | null>(null);
-  const [reveal, setReveal] = useState<RevealResponse | null>(null);
-  const [revealVisible, setRevealVisible] = useState(false);
-  const [revealLoading, setRevealLoading] = useState(false);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [error, setError] = useState<string | null>(null);
-  const frameCacheRef = useRef(new Map<string, DashboardFrameResponse>());
-  const frameRequestsRef = useRef(new Map<string, Promise<DashboardFrameResponse>>());
-  const frameRequestIdRef = useRef(0);
-  const allocationCacheRef = useRef(new Map<string, AllocateResponse>());
-  const allocationRequestsRef = useRef(new Map<string, Promise<AllocateResponse>>());
-  const revealCacheRef = useRef(new Map<string, RevealResponse>());
-  const revealRequestsRef = useRef(new Map<string, Promise<RevealResponse>>());
-  const revealRequestIdRef = useRef(0);
-  const horizonRef = useRef<Horizon>(horizon);
-  const replayTimeRef = useRef(replayTime);
-
+  const [study, setStudy] = useState<Study | null>(null),
+    [loadError, setLoadError] = useState(""),
+    [reload, setReload] = useState(0);
+  const [timeIndex, setTimeIndex] = useState(0),
+    [horizon, setHorizon] = useState<Horizon>(24),
+    [frame, setFrame] = useState<Frame | null>(null),
+    [frameError, setFrameError] = useState("");
+  const [revealed, setRevealed] = useState<Reveal | null>(null),
+    [revealError, setRevealError] = useState(""),
+    [revealing, setRevealing] = useState(false),
+    [tolerance, setTolerance] = useState<0 | 1>(0);
+  const [selected, setSelected] = useState<string | null>(null),
+    [filter, setFilter] = useState("selected"),
+    [view, setView] = useState("replay");
+  const revealSequence = useRef(0);
+  const generation = useRef(0),
+    revealController = useRef<AbortController | null>(null);
   useEffect(() => {
-    horizonRef.current = horizon;
-    replayTimeRef.current = replayTime;
-    revealRequestIdRef.current += 1;
-    setReveal(null);
-    setRevealVisible(false);
-    setRevealLoading(false);
-  }, [horizon, replayTime]);
-
-  const markFrameReady = useCallback((startTime: string) => {
-    const key = normalizeReplayTime(startTime);
-    setReadyFrameKeys((current) => {
-      if (current.has(key)) {
-        return current;
-      }
-      const next = new Set(current);
-      next.add(key);
-      return next;
-    });
-  }, []);
-
-  const cacheReplayFrame = useCallback(
-    (startTime: string, frame: DashboardFrameResponse) => {
-      const key = normalizeReplayTime(startTime);
-      frameCacheRef.current.set(key, frame);
-      markFrameReady(key);
-    },
-    [markFrameReady],
-  );
-
-  const fetchReplayFrame = useCallback(
-    (startTime: string) => {
-      const key = normalizeReplayTime(startTime);
-      const cached = frameCacheRef.current.get(key);
-      if (cached) {
-        return Promise.resolve(cached);
-      }
-
-      const existingRequest = frameRequestsRef.current.get(key);
-      if (existingRequest) {
-        return existingRequest;
-      }
-
-      const request = api
-        .frame(DEFAULT_BBOX, key, HORIZONS, HOTSPOT_LOOKBACK_START)
-        .then((frameData) => {
-          cacheReplayFrame(key, frameData);
-          return frameData;
-        })
-        .finally(() => {
-          frameRequestsRef.current.delete(key);
-        });
-
-      frameRequestsRef.current.set(key, request);
-      return request;
-    },
-    [cacheReplayFrame],
-  );
-
-  const fetchAllocation = useCallback((startTime: string, allocationHorizon: Horizon, predictionRunId: string) => {
-    const key = allocationCacheKey(startTime, allocationHorizon);
-    const cached = allocationCacheRef.current.get(key);
-    if (cached) {
-      return Promise.resolve(cached);
-    }
-
-    const existingRequest = allocationRequestsRef.current.get(key);
-    if (existingRequest) {
-      return existingRequest;
-    }
-
-    const request = api
-      .allocate(DEFAULT_BBOX, normalizeReplayTime(startTime), allocationHorizon, predictionRunId)
-      .then((allocationData) => {
-        allocationCacheRef.current.set(key, allocationData);
-        return allocationData;
-      })
-      .finally(() => {
-        allocationRequestsRef.current.delete(key);
+    const controller = new AbortController();
+    setLoadError("");
+    getStudy(controller.signal)
+      .then(setStudy)
+      .catch((e) => {
+        if (e.name !== "AbortError") setLoadError(e.message);
       });
-
-    allocationRequestsRef.current.set(key, request);
-    return request;
-  }, []);
-
-  const prefetchReplayStep = useCallback(
-    (startTime: string) => {
-      const key = normalizeReplayTime(startTime);
-      void fetchReplayFrame(key)
-        .then((frameData) => fetchAllocation(key, horizonRef.current, frameData.prediction.prediction_run_id))
-        .catch(() => undefined);
-    },
-    [fetchAllocation, fetchReplayFrame],
+    return () => controller.abort();
+  }, [reload]);
+  const times = [...new Set(study?.frames.map((f) => f.cutoff) || [])];
+  const key = study?.frames.find(
+    (f) => f.cutoff === times[timeIndex] && f.horizon === horizon,
   );
-
-  const prefetchNearbyReplaySteps = useCallback(
-    async (anchorTime: string, limit = PREFETCH_STEPS) => {
-      for (const step of orderedReplaySteps(anchorTime, limit)) {
-        try {
-          const frameData = await fetchReplayFrame(step);
-          void fetchAllocation(step, horizonRef.current, frameData.prediction.prediction_run_id).catch(() => undefined);
-        } catch {
-          return;
-        }
-      }
-    },
-    [fetchAllocation, fetchReplayFrame],
-  );
-
-  const fetchReveal = useCallback((startTime: string, revealHorizon: Horizon) => {
-    const key = revealCacheKey(startTime, revealHorizon);
-    const cached = revealCacheRef.current.get(key);
-    if (cached) {
-      return Promise.resolve(cached);
-    }
-
-    const existingRequest = revealRequestsRef.current.get(key);
-    if (existingRequest) {
-      return existingRequest;
-    }
-
-    const request = api
-      .reveal(DEFAULT_BBOX, normalizeReplayTime(startTime), revealHorizon, 36)
-      .then((revealData) => {
-        revealCacheRef.current.set(key, revealData);
-        return revealData;
-      })
-      .finally(() => {
-        revealRequestsRef.current.delete(key);
-      });
-
-    revealRequestsRef.current.set(key, request);
-    return request;
-  }, []);
-
-  const applyReplayFrame = useCallback(
-    (startTime: string, frame: DashboardFrameResponse) => {
-      const key = normalizeReplayTime(startTime);
-      const cachedAllocation = allocationCacheRef.current.get(allocationCacheKey(key, horizonRef.current)) ?? null;
-
-      cacheReplayFrame(key, frame);
-      setReplayTime(key);
-      setPrediction(frame.prediction);
-      setHotspots(frame.hotspots);
-      setSelectedH3Id((current) => {
-        const availableCells = new Set(frame.prediction.risk_cells.map((cell) => cell.h3_id));
-        return current && availableCells.has(current) ? current : frame.prediction.risk_cells[0]?.h3_id ?? null;
-      });
-      setAllocation(cachedAllocation);
-      setAllocationError(null);
-      setAllocationLoading(!cachedAllocation);
-      setReveal(null);
-      setRevealVisible(false);
-      setRevealLoading(false);
-      setFrameLoading(false);
-      setStatus("ready");
-    },
-    [cacheReplayFrame],
-  );
-
-  const requestReplayFrame = useCallback(
-    (startTime: string) => {
-      const key = normalizeReplayTime(startTime);
-      frameRequestIdRef.current += 1;
-      const requestId = frameRequestIdRef.current;
-      const cached = frameCacheRef.current.get(key);
-
-      setReplayTime(key);
-      setError(null);
-
-      if (cached) {
-        applyReplayFrame(key, cached);
-        return;
-      }
-
-      setFrameLoading(true);
-      setReveal(null);
-      setRevealVisible(false);
-      setRevealLoading(false);
-
-      fetchReplayFrame(key)
-        .then((frameData) => {
-          if (frameRequestIdRef.current === requestId) {
-            applyReplayFrame(key, frameData);
+  useEffect(() => {
+    const token = ++generation.current,
+      controller = new AbortController();
+    revealController.current?.abort();
+    setRevealed(null);
+    setRevealError("");
+    setRevealing(false);
+    setFrame(null);
+    setFrameError("");
+    setSelected(null);
+    setTolerance(0);
+    setFilter("selected");
+    if (study && key?.available)
+      request<Frame>("dashboard/frame", study, key, controller.signal)
+        .then((data) => {
+          if (token === generation.current) {
+            setFrame(data);
+            setSelected(data.selectedCells[0] || null);
           }
         })
-        .catch((loadError) => {
-          if (frameRequestIdRef.current === requestId) {
-            setError(loadError instanceof Error ? loadError.message : "Unable to load replay frame");
-            setFrameLoading(false);
-            setStatus("error");
-          }
+        .catch((e) => {
+          if (e.name !== "AbortError" && token === generation.current)
+            setFrameError(e.message);
         });
-    },
-    [applyReplayFrame, fetchReplayFrame],
-  );
-
-  const handleReplayTimeChange = useCallback(
-    (startTime: string) => {
-      const key = normalizeReplayTime(startTime);
-      requestReplayFrame(key);
-      void prefetchNearbyReplaySteps(key);
-    },
-    [prefetchNearbyReplaySteps, requestReplayFrame],
-  );
-
-  useEffect(() => {
-    let isActive = true;
-
-    async function loadDashboard() {
-      setStatus("loading");
-      setFrameLoading(false);
-      setError(null);
-      setPrediction(null);
-      setReveal(null);
-      setRevealVisible(false);
-      setAllocation(null);
-      setAllocationError(null);
-      setAllocationLoading(false);
-
-      try {
-        const bootstrapData = await fetchDashboardBootstrap();
-
-        if (!isActive) {
-          return;
-        }
-
-        const initialFrame = {
-          prediction: bootstrapData.prediction,
-          hotspots: bootstrapData.hotspots,
-        };
-        const initialTime = normalizeReplayTime(bootstrapData.prediction.start_time);
-        const initialAllocation = bootstrapData.allocation ?? null;
-        if (initialAllocation) {
-          allocationCacheRef.current.set(allocationCacheKey(initialTime, horizonRef.current), initialAllocation);
-        }
-
-        setReplay(bootstrapData.replay);
-        setIncidents(bootstrapData.incidents);
-        setMetrics(bootstrapData.metrics);
-        setHeldout(bootstrapData.heldout);
-        setAllocation(initialAllocation);
-        setAllocationError(null);
-        setAllocationLoading(false);
-        applyReplayFrame(initialTime, initialFrame);
-      } catch (loadError) {
-        if (!isActive) {
-          return;
-        }
-        setError(loadError instanceof Error ? loadError.message : "Unable to load dashboard data");
-        setStatus("error");
-      }
-    }
-
-    loadDashboard();
-
     return () => {
-      isActive = false;
+      controller.abort();
+      revealController.current?.abort();
     };
-  }, [applyReplayFrame]);
-
-  useEffect(() => {
-    if (!prediction || normalizeReplayTime(prediction.start_time) !== normalizeReplayTime(replayTime)) {
-      return;
-    }
-
-    let isActive = true;
-    const key = allocationCacheKey(replayTime, horizon);
-    const cached = allocationCacheRef.current.get(key);
-    if (cached) {
-      setAllocation(cached);
-      setAllocationError(null);
-      setAllocationLoading(false);
-      return;
-    }
-
-    setAllocationError(null);
-    setAllocation(null);
-    setAllocationLoading(true);
-    setReveal(null);
-    setRevealVisible(false);
-
-    fetchAllocation(replayTime, horizon, prediction.prediction_run_id)
-      .then((allocationData) => {
-        if (isActive) {
-          setAllocation(allocationData);
-        }
-      })
-      .catch((loadError) => {
-        if (isActive) {
-          setAllocationError(loadError instanceof Error ? loadError.message : "Unable to compute allocation");
-        }
-      })
-      .finally(() => {
-        if (isActive) {
-          setAllocationLoading(false);
-        }
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [fetchAllocation, horizon, prediction, replayTime]);
-
-  const handleRevealToggle = useCallback(async () => {
-    if (revealVisible) {
-      setRevealVisible(false);
-      return;
-    }
-
-    const key = revealCacheKey(replayTime, horizon);
-    const cachedReveal = revealCacheRef.current.get(key);
-    if (cachedReveal) {
-      setReveal(cachedReveal);
-      setRevealVisible(true);
-      return;
-    }
-
-    if (reveal && revealCacheKey(reveal.start_time, reveal.summary.horizon_hours) === key) {
-      setRevealVisible(true);
-      return;
-    }
-
-    revealRequestIdRef.current += 1;
-    const requestId = revealRequestIdRef.current;
-
-    setRevealLoading(true);
-    setReveal(null);
+  }, [study, key?.id]);
+  const currentFrame = frame?.id === key?.id ? frame : null;
+  const currentReveal = revealed?.frameId === key?.id ? revealed : null;
+  async function revealOutcomes(rings: 0 | 1 = tolerance) {
+    if (!study || !key || !currentFrame) return;
+    revealController.current?.abort();
+    const controller = new AbortController();
+    revealController.current = controller;
+    const token = generation.current,
+      requestNumber = ++revealSequence.current;
+    setRevealing(true);
+    setRevealError("");
     try {
-      const revealData = await fetchReveal(replayTime, horizon);
+      const data = await request<Reveal>(
+        "reveal",
+        study,
+        key,
+        controller.signal,
+        rings,
+      );
       if (
-        revealRequestIdRef.current === requestId &&
-        revealCacheKey(replayTimeRef.current, horizonRef.current) === key &&
-        revealCacheKey(revealData.start_time, revealData.summary.horizon_hours) === key
+        token === generation.current &&
+        requestNumber === revealSequence.current &&
+        !controller.signal.aborted
       ) {
-        setReveal(revealData);
-        setRevealVisible(true);
+        setRevealed(data);
+        setTolerance(rings);
       }
-    } catch (loadError) {
-      if (revealRequestIdRef.current === requestId) {
-        setError(loadError instanceof Error ? loadError.message : "Unable to compute reveal mode");
-        setStatus("error");
-      }
+    } catch (e) {
+      if (
+        e instanceof Error &&
+        e.name !== "AbortError" &&
+        token === generation.current &&
+        requestNumber === revealSequence.current
+      )
+        setRevealError(e.message);
     } finally {
-      if (revealRequestIdRef.current === requestId) {
-        setRevealLoading(false);
-      }
+      if (
+        token === generation.current &&
+        requestNumber === revealSequence.current
+      )
+        setRevealing(false);
     }
-  }, [fetchReveal, horizon, reveal, revealVisible, replayTime]);
-
-  const riskCells = prediction?.risk_cells ?? [];
-  const exposures = prediction?.exposures ?? [];
-  const riskCellsForHorizon = useMemo(
-    () => riskCells.filter((cell) => cell.horizon_hours === horizon),
-    [horizon, riskCells],
+  }
+  const cell = currentFrame?.cells.find(
+    (c) => `${c.h3_id}:${c.horizon}` === `${selected}:${horizon}`,
   );
-  const cellsById = useMemo(() => new Map(riskCells.map((cell) => [cell.h3_id, cell])), [riskCells]);
-  const exposureById = useMemo(() => new Map(exposures.map((exposure) => [exposure.h3_id, exposure])), [exposures]);
-  const selectedCell = selectedH3Id ? cellsById.get(selectedH3Id) ?? riskCellsForHorizon[0] : riskCellsForHorizon[0];
-  const selectedExposure = selectedCell ? exposureById.get(selectedCell.h3_id) ?? null : null;
-  const primaryIncident = incidents[0] ?? null;
-
-  const scrollSectionIntoView = useCallback((section: AppSectionId, behavior: ScrollBehavior = "smooth") => {
-    const target = document.getElementById(sectionHash(section).slice(1));
-    if (!target) {
-      return;
-    }
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    target.scrollIntoView({
-      block: "start",
-      behavior: prefersReducedMotion ? "auto" : behavior,
-    });
-  }, []);
-
-  const handleSectionSelect = useCallback(
-    (section: AppSectionId) => {
-      setActiveSection(section);
-      window.history.pushState(null, "", sectionHash(section));
-      window.setTimeout(() => scrollSectionIntoView(section), 0);
-    },
-    [scrollSectionIntoView],
+  const statuses = new Map(
+    currentReveal?.comparisonCells.map((c) => [c.h3_id, c.status]) || [],
   );
-
-  useEffect(() => {
-    const hashedSection = sectionFromHash(window.location.hash);
-    if (hashedSection) {
-      setActiveSection(hashedSection);
-      window.setTimeout(() => scrollSectionIntoView(hashedSection, "auto"), 0);
-    }
-
-    function handleHashChange() {
-      const nextSection = sectionFromHash(window.location.hash);
-      if (nextSection) {
-        setActiveSection(nextSection);
-        window.setTimeout(() => scrollSectionIntoView(nextSection), 0);
-      }
-    }
-
-    window.addEventListener("hashchange", handleHashChange);
-    window.addEventListener("popstate", handleHashChange);
-    return () => {
-      window.removeEventListener("hashchange", handleHashChange);
-      window.removeEventListener("popstate", handleHashChange);
-    };
-  }, [scrollSectionIntoView]);
-
-  useEffect(() => {
-    const sections = APP_SECTION_IDS.map((section) => document.getElementById(sectionHash(section).slice(1))).filter(
-      (section): section is HTMLElement => Boolean(section),
+  const allIds = [
+    ...new Set([
+      ...(currentFrame?.cells.map((c) => c.h3_id) || []),
+      ...(currentReveal?.comparisonCells.map((c) => c.h3_id) || []),
+    ]),
+  ];
+  const listed = allIds
+    .filter((id) =>
+      filter === "all" || filter === "selected"
+        ? filter === "all" || currentFrame?.selectedCells.includes(id)
+        : statuses.get(id) === filter,
+    )
+    .sort(
+      (a, b) =>
+        (currentFrame?.cells.find((c) => c.h3_id === b)?.score || 0) -
+        (currentFrame?.cells.find((c) => c.h3_id === a)?.score || 0),
     );
-    if (sections.length === 0) {
-      return undefined;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visibleEntry = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        const visibleSection = sectionFromHash(`#${visibleEntry?.target.id ?? ""}`);
-        if (visibleSection) {
-          setActiveSection(visibleSection);
-        }
-      },
-      { rootMargin: "-20% 0px -60% 0px", threshold: [0.1, 0.35, 0.6] },
-    );
-
-    sections.forEach((section) => observer.observe(section));
-    return () => observer.disconnect();
-  }, [status]);
-
   return (
-    <div className="app-shell">
-      <AppSidebar activeSection={activeSection} onSectionSelect={handleSectionSelect} />
-      <main className="workspace">
-        <TopBar
-          replay={replay}
-          status={status}
-          incidentCount={incidents.length}
-          predictionRunId={prediction?.prediction_run_id}
-        />
-
-        <section
-          id="section-operations"
-          className={
-            activeSection === "operations" ? "command-row section-anchor active-section" : "command-row section-anchor"
-          }
-          aria-label="Prediction controls"
-          tabIndex={-1}
-        >
-          <div className="command-copy">
-            <div className="system-mark">
-              <RadioTower size={18} />
-              Risk Replay Laboratory
-            </div>
-            <h1>NSW Bushfire Operations Console</h1>
-            <p>{timeLabel(replayTime)} prediction cut-off · {horizon}h forecast · future hotspots withheld</p>
+    <>
+      <header>
+        <a href="/" className="brand">
+          NSW Bushfire Forecast Replay
+        </a>
+        <nav aria-label="External links">
+          <a href="https://github.com/m21264551-arch/ai-disaster-response-intelligence-system">
+            Code & method ↗
+          </a>
+          <a href="https://m21264551.com">Portfolio ↗</a>
+        </nav>
+      </header>
+      <main>
+        <div className="opening">
+          <div>
+            <p className="eyebrow">
+              Historical satellite detections / January 2020
+            </p>
+            <h1>
+              Rank the next hotspots.
+              <br />
+              Then inspect what happened.
+            </h1>
           </div>
-          <div className="control-cluster">
-            <HorizonControl horizon={horizon} horizons={HORIZONS} onChange={setHorizon} />
-            <button
-              type="button"
-              className={revealVisible && reveal ? "reveal-command active" : "reveal-command"}
-              onClick={handleRevealToggle}
-              aria-pressed={revealVisible}
-              aria-label={
-                revealLoading
-                  ? "Computing reveal"
-                  : revealVisible
-                    ? "Hide actual spread"
-                    : `Reveal actual ${horizon}h spread`
-              }
-              disabled={revealLoading}
-              data-testid="reveal-toggle-primary"
-            >
-              {revealLoading ? (
-                <Loader2 className="spin" size={17} />
-              ) : revealVisible ? (
-                <EyeOff size={17} />
-              ) : (
-                <Eye size={17} />
-              )}
-              {revealLoading ? "Computing" : revealVisible ? "Hide spread" : `Reveal ${horizon}h`}
+          <p>
+            Replay a frozen model at a historical cutoff. Select the
+            highest-ranked 10% of nearby cells before revealing observed
+            detections, misses and false alarms.
+          </p>
+        </div>
+        {loadError ? (
+          <section role="alert">
+            <h2>Replay unavailable</h2>
+            <p>{loadError}</p>
+            <button onClick={() => setReload((v) => v + 1)}>
+              Reload study
             </button>
-            <InfoTip
-              label="Reveal spread"
-              text="Unhides the future hotspots for this replay and compares them with the forecast."
-              placement="left"
-            />
-          </div>
-        </section>
-
-        <EvidenceStrip metrics={metrics} heldout={heldout} prediction={prediction} horizon={horizon} />
-
-        {status === "error" ? (
-          <div className="error-state" role="alert">
-            <AlertTriangle size={28} />
-            <div>
-              <strong>Backend connection failed</strong>
-              <span>{error}</span>
-            </div>
-          </div>
-        ) : (
-          <section
-            id="section-risk"
-            className={activeSection === "risk" ? "dashboard-grid section-anchor active-section" : "dashboard-grid section-anchor"}
-            tabIndex={-1}
-          >
-            <div className="map-region">
-              {(status === "loading" || frameLoading) && (
-                <div className="loading-overlay">
-                  <Loader2 className="spin" size={22} />
-                  {status === "loading" ? "Loading replay intelligence" : "Loading replay frame"}
-                </div>
-              )}
-              {prediction ? (
-                <Suspense
-                  fallback={
-                    <div className="loading-overlay">
-                      <Loader2 className="spin" size={22} />
-                      Loading map engine
-                    </div>
-                  }
-                >
-                  <MapPanel
-                    bbox={replay?.region_bbox ?? DEFAULT_BBOX}
-                    horizon={horizon}
-                    hotspots={hotspots}
-                    riskCells={riskCellsForHorizon}
-                    allocations={allocation?.allocations ?? []}
-                    reveal={reveal}
-                    revealVisible={revealVisible}
-                    selectedH3Id={selectedCell?.h3_id ?? null}
-                    onSelectCell={setSelectedH3Id}
-                  />
-                </Suspense>
-              ) : (
-                <div className="map-panel map-placeholder" aria-label="Bushfire risk forecast map loading">
-                  <Loader2 className="spin" size={24} />
-                </div>
-              )}
-            </div>
-
-            <aside
-              id="section-exposure"
-              className={activeSection === "exposure" ? "right-rail section-anchor active-section" : "right-rail section-anchor"}
-              aria-label="Incident and forecast detail"
-              tabIndex={-1}
-            >
-              <IncidentPanel
-                incident={primaryIncident}
-                selectedCell={selectedCell ?? null}
-                selectedExposure={selectedExposure}
-                horizon={horizon}
-              />
-              <AllocationPanel
-                allocation={allocation}
-                selectedCell={selectedCell ?? null}
-                loading={allocationLoading}
-                error={allocationError}
-              />
-            </aside>
           </section>
+        ) : !study ? (
+          <p role="status">
+            Loading the frozen model and observation manifest…
+          </p>
+        ) : (
+          <>
+            <div className="identity">
+              <span>
+                Model <strong>{study.modelArtifactId}</strong>
+              </span>
+              <span>Dataset {study.datasetId}</span>
+              <span>Historical replay · uncalibrated scores</span>
+            </div>
+            <nav className="views" aria-label="Study views">
+              <button
+                aria-pressed={view === "replay"}
+                onClick={() => setView("replay")}
+              >
+                Forecast replay
+              </button>
+              <button
+                aria-pressed={view === "evaluation"}
+                onClick={() => setView("evaluation")}
+              >
+                Evaluation & calibration
+              </button>
+              <button
+                aria-pressed={view === "method"}
+                onClick={() => setView("method")}
+              >
+                Data & method
+              </button>
+            </nav>
+            {view === "replay" && (
+              <>
+                <div className="timeline">
+                  <label>
+                    Historical cutoff
+                    <select
+                      value={timeIndex}
+                      onChange={(e) => setTimeIndex(+e.target.value)}
+                    >
+                      {times.map((time, i) => (
+                        <option value={i} key={time}>
+                          {timestamp(time)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="timeline-range">
+                    Move through the event
+                    <input
+                      type="range"
+                      min="0"
+                      max={Math.max(0, times.length - 1)}
+                      value={timeIndex}
+                      onChange={(e) => setTimeIndex(+e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Forecast horizon
+                    <select
+                      value={horizon}
+                      onChange={(e) => setHorizon(+e.target.value as Horizon)}
+                    >
+                      {[24, 48, 72].map((h) => (
+                        <option key={h} value={h}>
+                          {h} hours
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                {!key?.available ? (
+                  <section className="unavailable" role="status">
+                    <h2>Observation coverage unavailable</h2>
+                    <p>
+                      {key?.reason || "This cutoff/horizon is unavailable."}
+                    </p>
+                    <button
+                      onClick={() => {
+                        setTimeIndex(0);
+                        setHorizon(24);
+                      }}
+                    >
+                      Return to first available forecast
+                    </button>
+                  </section>
+                ) : frameError ? (
+                  <section role="alert">
+                    <h2>Frame unavailable</h2>
+                    <p>{frameError}</p>
+                    <button onClick={() => setReload((v) => v + 1)}>
+                      Reload study
+                    </button>
+                  </section>
+                ) : !currentFrame ? (
+                  <p role="status">Loading historical forecast…</p>
+                ) : (
+                  <>
+                    <div className="replay-layout">
+                      <section>
+                        <div className="map-heading">
+                          <h2>
+                            {currentReveal
+                              ? "Forecast versus observed"
+                              : "Forecast at the cutoff"}
+                          </h2>
+                          <span>
+                            +{horizon}h · {currentFrame.cells.length} candidate
+                            cells
+                          </span>
+                        </div>
+                        <ForecastMap
+                          frame={currentFrame}
+                          reveal={currentReveal}
+                          selected={selected}
+                          onSelect={setSelected}
+                        />
+                        <div className="legend">
+                          {currentReveal ? (
+                            <>
+                              <span>● Hit</span>
+                              <span>┄ Miss: dashed outline</span>
+                              <span>⋯ False alarm: dotted outline</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Light → dark: higher score</span>
+                              <span>Heavy border: selected top 10%</span>
+                              <span>
+                                Maximum:{" "}
+                                {percent(
+                                  Math.max(
+                                    ...currentFrame.cells.map((c) => c.score),
+                                  ),
+                                )}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </section>
+                      <aside>
+                        <p className="eyebrow">Selection fixed before reveal</p>
+                        <h2>
+                          {currentFrame.selectedCells.length} cells selected
+                        </h2>
+                        <p>
+                          Ceiling of 10% of {currentFrame.cells.length}{" "}
+                          candidates. Ties resolve by H3 ID. Future detections
+                          never set this budget.
+                        </p>
+                        <button
+                          className="primary"
+                          onClick={() => revealOutcomes()}
+                          disabled={revealing}
+                        >
+                          {revealing
+                            ? "Loading outcomes…"
+                            : currentReveal
+                              ? "Recheck observed outcomes"
+                              : "Reveal observed outcomes"}
+                        </button>
+                        {revealError && <p role="alert">{revealError}</p>}
+                        {currentReveal && (
+                          <>
+                            <label className="tolerance">
+                              Metric matching
+                              <select
+                                value={tolerance}
+                                onChange={(e) =>
+                                  revealOutcomes(+e.target.value as 0 | 1)
+                                }
+                              >
+                                <option value="0">Exact cell (primary)</option>
+                                <option value="1">
+                                  Within one ring (secondary)
+                                </option>
+                              </select>
+                            </label>
+                            <dl>
+                              <dt>Precision</dt>
+                              <dd>
+                                {percent(currentReveal.summary.precision)}
+                              </dd>
+                              <dt>Recall</dt>
+                              <dd>{percent(currentReveal.summary.recall)}</dd>
+                              <dt>False alarms</dt>
+                              <dd>{currentReveal.summary.falseAlarms}</dd>
+                              <dt>Missed observed cells</dt>
+                              <dd>{currentReveal.summary.misses}</dd>
+                            </dl>
+                            <p className="small">
+                              Map statuses always use exact cells. One-ring
+                              tolerance can match several predictions to the
+                              same observation and is not comparable to
+                              exact-cell precision.
+                            </p>
+                          </>
+                        )}
+                        <section className="cell-details" aria-live="polite">
+                          <h3>Selected cell</h3>
+                          <code>{selected || "Select a cell"}</code>
+                          {cell ? (
+                            <>
+                              <p>
+                                <strong>{percent(cell.score)} score</strong> · +
+                                {cell.horizon}h
+                              </p>
+                              <p>
+                                {cell.selected
+                                  ? "In the fixed prediction budget."
+                                  : "Outside the prediction budget."}{" "}
+                                {statuses.get(cell.h3_id)?.replace("_", " ")}
+                              </p>
+                              <dl>
+                                <dt>Recent detections</dt>
+                                <dd>{cell.recentCount}</dd>
+                                <dt>Nearest observed hotspot</dt>
+                                <dd>{cell.nearestHotspotKm.toFixed(1)} km</dd>
+                              </dl>
+                              <p className="small">
+                                {cell.weatherMissing
+                                  ? "Weather has missing features; no synthetic values were inserted."
+                                  : `Weather available under the study's lag rule: ${cell.weatherAvailableAt ? timestamp(cell.weatherAvailableAt) : "unavailable"}.`}
+                              </p>
+                            </>
+                          ) : (
+                            selected && (
+                              <p>
+                                This observed cell is outside the candidate set.
+                                It counts as a miss and has no model score.
+                              </p>
+                            )
+                          )}
+                        </section>
+                      </aside>
+                    </div>
+                    <section className="cells-table">
+                      <div className="section-heading">
+                        <h2>Inspect cells without the map</h2>
+                        <label>
+                          Show cells
+                          <select
+                            value={filter}
+                            onChange={(e) => setFilter(e.target.value)}
+                          >
+                            <option value="selected">
+                              Selected predictions
+                            </option>
+                            <option value="all">
+                              All candidates and observations
+                            </option>
+                            {currentReveal && (
+                              <>
+                                <option value="hit">Hits</option>
+                                <option value="miss">Misses</option>
+                                <option value="false_alarm">
+                                  False alarms
+                                </option>
+                              </>
+                            )}
+                          </select>
+                        </label>
+                      </div>
+                      <p className="small">
+                        {listed.length} rows. Every candidate is retained for
+                        scoring; map or table filtering never changes
+                        evaluation.
+                      </p>
+                      <div
+                        className="table-wrap cell-scroll"
+                        tabIndex={0}
+                        role="region"
+                        aria-label="Inspectable cell results"
+                      >
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>H3 cell</th>
+                              <th>Score at +{horizon}h</th>
+                              <th>Selected?</th>
+                              <th>Observed comparison</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {listed.map((id) => {
+                              const c = currentFrame.cells.find(
+                                (v) => v.h3_id === id,
+                              );
+                              return (
+                                <tr
+                                  key={`${id}:${horizon}`}
+                                  aria-selected={selected === id}
+                                >
+                                  <th scope="row">
+                                    <button
+                                      onClick={() => setSelected(id)}
+                                      aria-label={`Inspect cell ${id}`}
+                                    >
+                                      {id}
+                                    </button>
+                                  </th>
+                                  <td>{c ? percent(c.score) : "Not scored"}</td>
+                                  <td>{c?.selected ? "Yes" : "No"}</td>
+                                  <td>
+                                    {currentReveal
+                                      ? statuses.get(id)?.replace("_", " ") ||
+                                        "No detection / not selected"
+                                      : "Not revealed"}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </>
+                )}
+              </>
+            )}
+            {view === "evaluation" && (
+              <>
+                <h2>Same model. Same candidates. Reserved event.</h2>
+                <p>
+                  January 10–16 was already used by an earlier benchmark. This
+                  is a corrected reconstruction, not newly unseen evidence.
+                  Metrics below pool all covered cutoffs separately by horizon,
+                  keeping every candidate.
+                </p>
+                <label className="evaluation-horizon">
+                  Evaluation horizon
+                  <select
+                    value={horizon}
+                    onChange={(e) => setHorizon(+e.target.value as Horizon)}
+                  >
+                    {[24, 48, 72].map((h) => (
+                      <option key={h} value={h}>
+                        {h} hours
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <ScoreTable scores={study.benchmarks[horizon]} />
+                <p className="small">
+                  AP and Brier use all candidate cells. Recall includes observed
+                  cells outside the candidate set. Precision/recall use a
+                  separate top-10% selection for each method at each cutoff.
+                  Overlapping horizons repeat observations and are not
+                  independent trials. Persistence is 1 for a cell with a recent
+                  detection; prevalence is learned only from eligible training
+                  labels.
+                </p>
+                <div className="calibration-section">
+                  <section>
+                    <h3>Calibration of the frozen model · +{horizon}h</h3>
+                    <svg
+                      viewBox="0 0 430 330"
+                      role="img"
+                      aria-label="Calibration: mean model score versus observed fraction, dashed diagonal shows agreement"
+                    >
+                      <line
+                        x1="50"
+                        y1="280"
+                        x2="380"
+                        y2="25"
+                        stroke="#889095"
+                        strokeDasharray="5 5"
+                      />
+                      <line x1="50" y1="25" x2="50" y2="280" stroke="#52626c" />
+                      <line
+                        x1="50"
+                        y1="280"
+                        x2="380"
+                        y2="280"
+                        stroke="#52626c"
+                      />
+                      {[0, 0.5, 1].map((n) => (
+                        <g key={n}>
+                          <text x={50 + 330 * n} y="302" textAnchor="middle">
+                            {n}
+                          </text>
+                          <text x="36" y={285 - 255 * n} textAnchor="end">
+                            {n}
+                          </text>
+                        </g>
+                      ))}
+                      {study.benchmarks[horizon].model.calibration.map(
+                        (p, i) => (
+                          <circle
+                            key={i}
+                            cx={50 + 330 * p.meanScore}
+                            cy={280 - 255 * p.observedFraction}
+                            r={5 + Math.sqrt(p.n) / 8}
+                            fill="#964c29"
+                          >
+                            <title>
+                              {p.n} rows: score {percent(p.meanScore)}, observed{" "}
+                              {percent(p.observedFraction)}
+                            </title>
+                          </circle>
+                        ),
+                      )}
+                      <text x="210" y="327" textAnchor="middle">
+                        Mean model score
+                      </text>
+                      <text
+                        transform="translate(14 150) rotate(-90)"
+                        textAnchor="middle"
+                      >
+                        Observed fraction
+                      </text>
+                    </svg>
+                  </section>
+                  <section>
+                    <h3>What the numbers leave out</h3>
+                    <p>
+                      The model misses {study.benchmarks[horizon].model.misses}{" "}
+                      observed cell/window occurrences at this budget, including{" "}
+                      {study.benchmarks[horizon].model.outsideCandidateMisses}{" "}
+                      outside its candidate area.
+                    </p>
+                    <p>
+                      Scores have not been calibrated into reliable event
+                      probabilities. The plot measures agreement on the reserved
+                      event; it does not apply a correction learned from those
+                      outcomes.
+                    </p>
+                    <p>
+                      The baseline comparisons are useful even when the trained
+                      model loses. One week of training and one adjacent event
+                      window cannot establish performance across seasons or
+                      regions.
+                    </p>
+                  </section>
+                </div>
+              </>
+            )}
+            {view === "method" && (
+              <section className="method">
+                <h2>From archived observations to one frozen replay</h2>
+                <h3>Data and target</h3>
+                <p>
+                  The target is a satellite hotspot recorded in an H3
+                  resolution-5 cell during (cutoff, cutoff + horizon]. It is not
+                  a fire perimeter, physical spread simulation, evacuation
+                  recommendation or operational incident feed.
+                </p>
+                <p>
+                  <a href="https://hotspots.dea.ga.gov.au/">
+                    Digital Earth Australia Hotspots
+                  </a>{" "}
+                  supplies the archived detections. Complete paginated responses
+                  contain {study.coverage.training.rows.toLocaleString()}{" "}
+                  training-window and{" "}
+                  {study.coverage.evaluation.rows.toLocaleString()}{" "}
+                  evaluation-window records. Query receipts record source,
+                  bounding box, timestamps, matched counts and checksums.
+                  Satellite observation limitations remain.
+                </p>
+                <h3>Temporal boundary</h3>
+                <p>
+                  The frozen model trains on{" "}
+                  {study.training.rows.toLocaleString()} cell/horizon rows
+                  across {study.training.cutoffs.length} complete cutoff groups.
+                  Every cutoff plus the maximum 72-hour horizon ends before the
+                  reserved January 10 event boundary. Latest eligible training
+                  outcome: {timestamp(study.training.lastOutcomeEnd)}. No
+                  timestamp is divided between train and evaluation.
+                </p>
+                <h3>Features and fixed model</h3>
+                <p>
+                  Features use detections in the preceding 36 hours: cell and
+                  neighbour counts, distance, time since local detection,
+                  horizon and the fixed-bearing spread heuristic. Four real
+                  daily BoM weather fields plus station distance and age use a
+                  two-day availability lag. Missing weather remains NaN for the
+                  model. Population, invented infrastructure counts, mixed-unit
+                  intensity and future outcomes are excluded.
+                </p>
+                <p>
+                  Histogram gradient boosting: 150 iterations, learning rate
+                  0.055, 15 leaf nodes, L2=0.1, seed 42, no random
+                  early-stopping validation. These fixed settings are not tuned
+                  on the reserved event.
+                </p>
+                <h3>Selection and evaluation</h3>
+                <p>
+                  A single candidate definition is used during training, scoring
+                  and replay: ring 3 around recent hotspot cells, clipped by the
+                  fixed NSW bounds and land mask. All candidates are scored. The
+                  highest-ranked 10% are selected before outcomes are consulted.
+                  Exact matching is primary; neighbouring-cell tolerance is a
+                  separately labelled secondary comparison.
+                </p>
+                <h3>Reproduce</h3>
+                <pre>
+                  make install{"\n"}make replay{"\n"}make test{"\n"}make build
+                </pre>
+                <p>
+                  Acquisition is a separate optional command. The public API
+                  reads saved frames and verifies model/data identity; it never
+                  trains, performs expensive inference or substitutes a demo
+                  scorer.
+                </p>
+                <h3>Limitations</h3>
+                <ul>
+                  {study.limitations.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+                <p>
+                  Evaluation SHA256:{" "}
+                  <code>{study.coverage.evaluation.sha256}</code>
+                </p>
+              </section>
+            )}
+            <footer>
+              <a href={downloadURL} download="nsw-replay-v2.json">
+                Download frozen study ↓
+              </a>
+              <span>
+                {study.artifactId} · code {study.codeRevision.slice(0, 8)}
+              </span>
+              <span>
+                Historical research replay · generated{" "}
+                {study.generatedAt.slice(0, 10)}
+              </span>
+            </footer>
+          </>
         )}
-
-        <section className="bottom-grid">
-          <ReplayTimeline
-            sectionId="section-pipelines"
-            active={activeSection === "pipelines"}
-            replay={replay}
-            replayTime={replayTime}
-            onReplayTimeChange={handleReplayTimeChange}
-            onPrefetchStep={prefetchReplayStep}
-            readySteps={readyFrameKeys}
-            frameLoading={frameLoading}
-            observedHotspots={hotspots.length}
-            horizon={horizon}
-            reveal={reveal}
-            revealVisible={revealVisible}
-            revealLoading={revealLoading}
-            onRevealToggle={handleRevealToggle}
-          />
-          <MetricsStrip sectionId="section-evaluation" active={activeSection === "evaluation"} metrics={metrics} />
-          <HeldoutPanel sectionId="section-lineage" active={activeSection === "lineage"} evaluation={heldout} />
-        </section>
-
-        <footer className="disclaimer">
-          <Flame size={16} />
-          Not an official emergency tool. Portfolio simulation using public replay data and derived model artifacts.
-          <span>
-            <BarChart3 size={16} />
-            {prediction ? `${prediction.model_version} vs ${prediction.baseline_version}` : "Model benchmark pending"}
-          </span>
-        </footer>
       </main>
-    </div>
+    </>
   );
 }

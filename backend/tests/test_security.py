@@ -41,11 +41,9 @@ def test_expensive_endpoints_are_rate_limited(monkeypatch):
     limiter = security.InMemoryRateLimiter(security.RateLimitConfig(limit=1, window_seconds=60))
     monkeypatch.setattr(security, "expensive_endpoint_rate_limiter", limiter)
     client = TestClient(backend_app)
-    body = {
-        "bbox": [148.7, -37.4, 153.8, -31.1],
-        "start_time": datetime(2020, 1, 5, tzinfo=UTC).isoformat(),
-        "horizons": [24],
-    }
+    from app.replay.store import bundle
+    data = bundle()
+    body = {"frame_id": next(f["id"] for f in data["frames"] if f["available"]), "artifact_id": data["artifactId"]}
 
     first = client.post("/predict", json=body)
     second = client.post("/predict", json=body)

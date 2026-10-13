@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.legacy_demo import app
 from app.services.live_feeds import parse_nsw_rfs_incidents
 
 
