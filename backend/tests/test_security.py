@@ -23,7 +23,10 @@ def test_api_responses_include_security_headers():
     assert response.headers["x-frame-options"] == "DENY"
 
 
-def test_static_dashboard_shell_includes_security_headers():
+def test_static_dashboard_shell_includes_security_headers(monkeypatch, tmp_path):
+    from api import index
+    (tmp_path / "index.html").write_text("<!doctype html><title>Replay</title>")
+    monkeypatch.setattr(index, "STATIC_DIR", tmp_path)
     client = TestClient(edge_app, base_url="https://testserver")
 
     response = client.get("/")

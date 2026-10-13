@@ -21,3 +21,5 @@ public/
 
 frontend/test-results/
 frontend/playwright-report/
+
+dashboard-static/
