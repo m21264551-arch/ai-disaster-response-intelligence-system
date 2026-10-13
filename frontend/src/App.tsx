@@ -221,7 +221,7 @@ export default function App() {
             </p>
             <h1>
               Rank the next hotspots.
-              <br />
+              <br />{" "}
               Then inspect what happened.
             </h1>
           </div>
