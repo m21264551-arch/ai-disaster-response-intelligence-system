@@ -177,3 +177,18 @@ def test_mismatched_or_missing_artifacts_fail_closed(tmp_path, monkeypatch):
     with pytest.raises(HTTPException) as e:
         store.bundle()
     assert e.value.status_code == 503
+
+
+def test_geometric_roundoff_cannot_change_the_model_features(monkeypatch):
+    from app.replay import pipeline
+
+    observations, _ = read_snapshot(DATA / "replay_evaluation_dea.csv")
+    weather = read_weather()
+    cutoff = pd.Timestamp("2020-01-11T12:00:00Z")
+    expected = pd.DataFrame(forecast_features(observations, weather, cutoff))
+    original = pipeline.distance_km
+    monkeypatch.setattr(pipeline, "distance_km", lambda *args: original(*args) + 1e-10)
+    actual = pd.DataFrame(forecast_features(observations, weather, cutoff))
+    pd.testing.assert_frame_equal(
+        actual[FEATURES], expected[FEATURES], check_exact=True
+    )

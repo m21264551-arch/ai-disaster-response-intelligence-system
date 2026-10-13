@@ -53,6 +53,7 @@ POLICY = {
     "maxHorizonHours": 72,
     "stepHours": 12,
     "scoreMeaning": "Uncalibrated model score for satellite hotspot occurrence, not a perimeter or physical spread probability",
+    "numericPrecision": "Finite features rounded to six decimal places before fitting and scoring; distance resolution is 1 mm.",
     "weatherAvailability": "Daily observations treated as available at 00:00 UTC two days after their date; historical publication timestamps are unavailable.",
 }
 
@@ -190,6 +191,12 @@ def forecast_features(observations, weather, cutoff):
                     "weatherAvailableAt": available,
                 }
             )
+    # Tree thresholds can sit exactly on repeated geometric values. Stabilize
+    # the feature contract across libm/H3 CPU implementations (km to 1 mm).
+    for row in rows:
+        for name in FEATURES:
+            if np.isfinite(row[name]):
+                row[name] = round(float(row[name]), 6)
     return rows
 
 
