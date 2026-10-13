@@ -20,13 +20,15 @@ export function ForecastMap({
     callback = useRef(onSelect);
   const [tilesMissing, setTilesMissing] = useState(false);
   const fitKey = useRef("");
+  const bounds = useRef<L.LatLngBounds | null>(null);
   callback.current = onSelect;
   useEffect(() => {
     if (!div.current) return;
-    const instance = L.map(div.current, { scrollWheelZoom: false }).setView(
-      [-34.8, 150.2],
-      7,
-    );
+    const instance = L.map(div.current, {
+      scrollWheelZoom: false,
+      zoomSnap: 0.25,
+      zoomDelta: 0.5,
+    }).setView([-34.8, 150.2], 7);
     map.current = instance;
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution:
@@ -36,7 +38,15 @@ export function ForecastMap({
       .on("tileerror", () => setTilesMissing(true))
       .addTo(instance);
     layer.current = L.layerGroup().addTo(instance);
-    const observer = new ResizeObserver(() => instance.invalidateSize());
+    const observer = new ResizeObserver(() => {
+      instance.invalidateSize();
+      if (bounds.current)
+        instance.fitBounds(bounds.current, {
+          padding: [18, 18],
+          maxZoom: 8,
+          animate: false,
+        });
+    });
     observer.observe(div.current);
     return () => {
       observer.disconnect();
@@ -89,12 +99,14 @@ export function ForecastMap({
       const points = [...items.values()].flatMap((g) =>
         g.coordinates[0].map((p) => L.latLng(p[1], p[0])),
       );
-      if (points.length)
-        map.current.fitBounds(L.latLngBounds(points), {
+      if (points.length) {
+        bounds.current = L.latLngBounds(points);
+        map.current.fitBounds(bounds.current, {
           padding: [18, 18],
           maxZoom: 8,
           animate: false,
         });
+      }
       fitKey.current = nextFit;
     }
     const selectedGeometry = selected && items.get(selected);
@@ -111,7 +123,7 @@ export function ForecastMap({
         ref={div}
         className="forecast-map"
         role="region"
-        aria-label="Historical forecast map; every cell can also be inspected in the table below"
+        aria-label="Historical forecast map; every cell can also be inspected in the Table view"
       />
       {tilesMissing && (
         <p className="tile-note">
