@@ -4,11 +4,11 @@
 
 [Open the historical replay](https://disaster.m21264551.com) · [Case study](docs/case-study.md)
 
-![Frozen forecast versus observed detections](docs/replay-desktop.png)
+![Frozen forecast versus observed detections](docs/compact-desktop.jpg)
 
 ## Try it
 
-Select a January 2020 cutoff and a 24/48/72-hour horizon. Inspect the fixed highest-ranked 10% of candidates, then reveal observed hits, misses and false alarms. Change the horizon: the selected-cell score, map, table and reveal state change together. Late cutoffs disable horizons without future observation coverage. The table provides a keyboard alternative to the map.
+Select a January 2020 cutoff and a 24/48/72-hour horizon. Inspect the fixed highest-ranked 10% of candidates, then reveal observed hits, misses and false alarms. Change the horizon: the selected-cell score, map, table and reveal state change together. Late cutoffs disable horizons without future observation coverage. Choose **Table** for keyboard access to cell results; **Show observations** toggles the outcome overlay.
 
 **Evaluation & calibration** compares the exact frozen model with persistence, training prevalence and a fixed-bearing spread heuristic. The target is satellite hotspot occurrence, not a physical fire-spread simulator, fire perimeter or emergency response recommendation.
 
