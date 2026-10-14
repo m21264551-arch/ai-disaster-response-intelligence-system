@@ -45,8 +45,7 @@ export function ForecastMap({
     )
       return;
     map.current.fitBounds(bounds.current, {
-      paddingTopLeft: [22, 22],
-      paddingBottomRight: window.innerWidth >= 1000 ? [280, 35] : [22, 35],
+      padding: [22, 22],
       maxZoom: 8,
       animate: false,
     });
