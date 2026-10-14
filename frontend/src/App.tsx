@@ -78,6 +78,8 @@ export default function App() {
   const [study, setStudy] = useState<Study | null>(null),
     [loadError, setLoadError] = useState(""),
     [reload, setReload] = useState(0);
+  const [scrubIndex, setScrubIndex] = useState<number | null>(null);
+  const scrubbing = useRef(false);
   const [timeIndex, setTimeIndex] = useState(0),
     [horizon, setHorizon] = useState<Horizon>(24),
     [frame, setFrame] = useState<Frame | null>(null),
@@ -314,8 +316,36 @@ export default function App() {
                       type="range"
                       min="0"
                       max={Math.max(0, times.length - 1)}
-                      aria-valuetext={times[timeIndex] ? timestamp(times[timeIndex]) : "Unavailable"} value={timeIndex}
-                      onChange={(e) => setTimeIndex(+e.target.value)}
+                      aria-valuetext={times[scrubIndex ?? timeIndex] ? timestamp(times[scrubIndex ?? timeIndex]) : "Unavailable"}
+                      value={scrubIndex ?? timeIndex}
+                      onPointerDown={(e) => {
+                        scrubbing.current = true;
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                      }}
+                      onChange={(e) => {
+                        const index = +e.target.value;
+                        if (scrubbing.current) setScrubIndex(index);
+                        else setTimeIndex(index);
+                      }}
+                      onPointerUp={(e) => {
+                        if (scrubbing.current) setTimeIndex(+e.currentTarget.value);
+                        scrubbing.current = false;
+                        setScrubIndex(null);
+                      }}
+                      onPointerCancel={() => {
+                        scrubbing.current = false;
+                        setScrubIndex(null);
+                      }}
+                      onLostPointerCapture={() => {
+                        scrubbing.current = false;
+                        setScrubIndex(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          scrubbing.current = false;
+                          setScrubIndex(null);
+                        }
+                      }}
                     />
                     <span className="timeline-endpoints"><span>{times[0] ? timestamp(times[0]).split(",")[0] : ""}</span><span>{times[times.length-1] ? timestamp(times[times.length-1]).split(",")[0] : ""}</span></span>
                   </label>
@@ -359,33 +389,6 @@ export default function App() {
                     </div>
                   )}
                 </div>
-                {!key?.available ? (
-                  <section className="unavailable workspace-message" role="status">
-                    <h2>Observation coverage unavailable</h2>
-                    <p>
-                      {key?.reason || "This cutoff/horizon is unavailable."}
-                    </p>
-                    <button
-                      onClick={() => {
-                        setTimeIndex(0);
-                        setHorizon(24);
-                      }}
-                    >
-                      Return to first available forecast
-                    </button>
-                  </section>
-                ) : frameError ? (
-                  <section className="workspace-message" role="alert">
-                    <h2>Frame unavailable</h2>
-                    <p>{frameError}</p>
-                    <button onClick={() => { retryFocus.current=true; setReload((v) => v + 1); }}>
-                      Reload study
-                    </button>
-                  </section>
-                ) : !currentFrame ? (
-                  <p className="workspace-message" role="status">Loading historical forecast…</p>
-                ) : (
-                  <>
                     <div className="replay-layout">
                       {currentReveal && (
                         <section
@@ -418,8 +421,7 @@ export default function App() {
                               : "Forecast at the cutoff"}
                           </h2>
                           <span>
-                            +{horizon}h · {currentFrame.cells.length} candidate
-                            cells
+                            +{horizon}h · {currentFrame ? `${currentFrame.cells.length} candidate cells` : "Forecast pending"}
                           </span>
                         </div>
                         <div className="result-controls">
@@ -443,13 +445,13 @@ export default function App() {
                           </div>
                           {!currentReveal && <label>
                             Show cells
-                            <select value={filter} onChange={e=>changeFilter(e.target.value)}>
+                            <select value={filter} disabled={!currentFrame} onChange={e=>changeFilter(e.target.value)}>
                               <option value="all">All candidates</option>
                               <option value="selected">Included in forecast</option>
                             </select>
                           </label>}
                         </div>
-                        <div className="map-display" hidden={surface !== "map"}>
+                        <div className="map-display" hidden={surface !== "map" && !!currentFrame} aria-busy={!!key?.available && !currentFrame && !frameError}>
                           <ForecastMap
                             frame={currentFrame}
                             reveal={currentReveal}
@@ -458,8 +460,36 @@ export default function App() {
                             onSelect={setSelected}
                             focusRequest={focusRequest}
                           />
+                          {!currentFrame && <div className="frame-notice">
+                          {!key?.available ? (
+                            <section className="unavailable frame-message" role="status">
+                              <h2>Observation coverage unavailable</h2>
+                              <p>
+                                {key?.reason || "This cutoff/horizon is unavailable."}
+                              </p>
+                              <button
+                                onClick={() => {
+                                  setTimeIndex(0);
+                                  setHorizon(24);
+                                }}
+                              >
+                                Return to first available forecast
+                              </button>
+                            </section>
+                          ) : frameError ? (
+                            <section className="frame-message" role="alert">
+                              <h2>Frame unavailable</h2>
+                              <p>{frameError}</p>
+                              <button onClick={() => { retryFocus.current=true; setReload((v) => v + 1); }}>
+                                Reload study
+                              </button>
+                            </section>
+                          ) : (
+                            <p className="frame-message" role="status">Loading historical forecast…</p>
+                          )}
+                          </div>}
                           <div className="legend">
-                            {currentReveal ? (
+                            {!currentFrame ? <span>Forecast pending</span> : currentReveal ? (
                               <>
                                 <span>● Hit</span>
                                 <span>┄ Miss: dashed outline</span>
@@ -481,7 +511,7 @@ export default function App() {
                             )}
                           </div>
                         </div>
-                        {surface === "table" && (
+                        {currentFrame && surface === "table" && (
                           <section className="cells-table">
                             <div className="section-heading">
                               <h2>Cell results</h2>
@@ -526,7 +556,7 @@ export default function App() {
                           </section>
                         )}
                       </section>
-                      <div role="region" aria-label="Cell inspection" className={`cell-inspector ${surface === "table" ? "beside-table" : ""}`}>
+                      {currentFrame && <div role="region" aria-label="Cell inspection" className={`cell-inspector ${surface === "table" ? "beside-table" : ""}`}>
                         {revealError && <p role="alert">{revealError}</p>}
                         <section className="cell-details" aria-live="polite">
                           <h2 id="inspecting-cell" tabIndex={-1}>Inspecting cell</h2>
@@ -625,10 +655,8 @@ export default function App() {
                             </p>
                           </details>
                         )}
-                      </div>
+                      </div>}
                     </div>
-                  </>
-                )}
             </section>
             {view === "evaluation" && (
               <>

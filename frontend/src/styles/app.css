@@ -50,6 +50,9 @@ input[type=range] { accent-color:#71533d; min-height:44px; }
 .surface-switch button { font-size:12px; padding:8px 12px; }
 .surface-switch button[aria-pressed=true] { background:#e5ebe6; border-color:#718579; font-weight:650; }
 .map-display { position:relative; grid-column:1/-1; }
+.frame-notice { position:absolute; inset:0; z-index:5; display:grid; justify-items:center; align-items:start; padding:12px; pointer-events:none; }
+.frame-message { pointer-events:auto; max-width:36rem; padding:20px 24px; margin:0; border:1px solid var(--line); background:#fafaf8; box-shadow:0 2px 12px #0001; }
+.frame-message h2 { margin-top:0; }
 .map-wrap { position:relative; border:1px solid #cbd4cd; background:#e8ece5; }
 .forecast-map { height:max(420px,calc(100svh - 300px)); z-index:0; }
 .leaflet-container { font-family:system-ui,sans-serif; }
