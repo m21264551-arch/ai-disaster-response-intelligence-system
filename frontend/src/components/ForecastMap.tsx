@@ -11,7 +11,7 @@ export function ForecastMap({
   onSelect,
   focusRequest,
 }: {
-  frame: Frame;
+  frame: Frame | null;
   reveal: Reveal | null;
   selected: string | null;
   visibleIds: string[];
@@ -19,6 +19,7 @@ export function ForecastMap({
   focusRequest: {cell:string;nonce:number} | null;
 }) {
   const div = useRef<HTMLDivElement>(null);
+  const wrapper = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
   const callback = useRef(onSelect);
@@ -31,7 +32,6 @@ export function ForecastMap({
     query.addEventListener("change",resize);
     return ()=>query.removeEventListener("change",resize);
   },[]);
-  const fitKey = useRef("");
   const needsFit = useRef(true);
   const bounds = useRef<L.LatLngBounds | null>(null);
   const focusedRequest = useRef<number | null>(null);
@@ -53,7 +53,6 @@ export function ForecastMap({
   };
   useEffect(() => {
     if (!div.current) return;
-    fitKey.current = "";
     needsFit.current = true;
     const instance = L.map(div.current, {
       scrollWheelZoom: false,
@@ -103,7 +102,11 @@ export function ForecastMap({
     };
   }, []);
   useEffect(() => {
-    if (!layer.current || !map.current) return;
+    // Keep the basemap mounted during requests, but don't inspect an old frame.
+    if (wrapper.current) wrapper.current.inert = !frame;
+  }, [frame]);
+  useEffect(() => {
+    if (!frame || !layer.current || !map.current) return;
     layer.current.clearLayers();
     const statuses = new Map(
       reveal?.comparisonCells.map((c) => [c.h3_id, c.status]) || [],
@@ -151,10 +154,8 @@ export function ForecastMap({
       g.coordinates[0].map((p) => L.latLng(p[1], p[0])),
     );
     if (points.length) bounds.current = L.latLngBounds(points);
-    if (fitKey.current !== frame.id) {
-      fitKey.current = frame.id;
-      needsFit.current = true;
-    }
+    // A new cutoff updates the forecast, not the user's geographic viewport.
+    // Initial load and the explicit Fit event button are the only auto-fit paths.
     if (needsFit.current) fitEvent();
   }, [frame, reveal, selected, visibleIds]);
   useEffect(()=>{
@@ -164,7 +165,7 @@ export function ForecastMap({
     if(div.current) div.current.dataset.movement=(!small || moving)?"enabled":"page-scroll";
   },[small,moving]);
   useEffect(()=>{
-    if(!focusRequest || !map.current || focusedRequest.current === focusRequest.nonce) return;
+    if(!frame || !focusRequest || !map.current || focusedRequest.current === focusRequest.nonce) return;
     const geometry=frame.cells.find(c=>c.h3_id===focusRequest.cell)?.geometry || reveal?.comparisonCells.find(c=>c.h3_id===focusRequest.cell)?.geometry;
     if(!geometry) return;
     const cellBounds=L.latLngBounds(geometry.coordinates[0].map(p=>L.latLng(p[1],p[0])));
@@ -173,7 +174,7 @@ export function ForecastMap({
     focusedRequest.current=focusRequest.nonce;
   },[focusRequest,frame,reveal]);
   return (
-    <div className="map-wrap" onKeyDown={event=>{if(event.key==="Escape") setMoving(false);}}>
+    <div ref={wrapper} className="map-wrap" onKeyDown={event=>{if(event.key==="Escape") setMoving(false);}}>
 
       <button className="fit-event" onClick={fitEvent}>
         Fit event
