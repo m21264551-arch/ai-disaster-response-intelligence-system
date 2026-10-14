@@ -59,12 +59,12 @@ input[type=range] { accent-color:#71533d; min-height:44px; }
 .legend { position:absolute; bottom:28px; left:12px; z-index:1; display:flex; flex-wrap:wrap; gap:8px 16px; background:#fffffff2; border:1px solid #d1d8d1; padding:8px 12px; max-width:calc(100% - 300px); font-size:12px; color:#344d46; pointer-events:none; }
 .legend span:nth-child(2) { color:#713448; }
 .legend span:nth-child(3) { color:#785020; }
-.cell-inspector { position:absolute; right:12px; top:70px; width:248px; max-height:calc(100% - 120px); overflow:auto; padding:16px; z-index:2; background:#fffffff5; border:1px solid #d1d8d1; border-radius:4px; box-shadow:0 2px 8px #14261b0d; }
-.replay-layout:has(.outcome-summary) .cell-inspector { top:132px; }
+.cell-inspector { position:absolute; right:12px; top:70px; width:248px; max-height:calc(100% - 106px); overflow:auto; padding:16px; z-index:2; background:#fffffff5; border:1px solid #d1d8d1; border-radius:4px; box-shadow:0 2px 8px #14261b0d; }
+.replay-layout:has(.outcome-summary) .cell-inspector { top:142px; max-height:calc(100% - 178px); }
 .cell-inspector.beside-table { position:static; width:auto; max-height:none; margin-top:12px; }
 .cell-details h3 { margin:0 0 8px; font-size:13px; color:#53666e; }
 .cell-outcome { font-size:18px; font-weight:650; margin:4px 0; }
-.cell-score { font-size:26px; font-weight:650; margin:4px 0; font-variant-numeric:tabular-nums; }
+.cell-score { font-size:20px; font-weight:650; margin:4px 0; font-variant-numeric:tabular-nums; }
 .cell-details .small { margin:2px 0; }
 .cell-details code { display:block; font-size:12px; overflow-wrap:anywhere; margin:8px 0; }
 .cell-inspector h2 { font-size:14px; margin:0 0 12px; }
@@ -189,3 +189,11 @@ footer { border-top:1px solid var(--line); padding-top:14px; margin-top:20px; di
  .cell-scroll th,.cell-scroll td { font-size:12px; padding:8px 6px; }
  .cell-scroll button { padding:6px; font-size:12px; }
 }
+
+/* Rank explains selection; the score remains an uncalibrated model output. */
+.cell-rank { font-size:18px!important; font-weight:650; margin:8px 0 0; }
+.timeline-endpoints { display:flex; justify-content:space-between; gap:12px; font-weight:400; font-size:11px; }
+.outcome-summary .outcome-reading { max-width:44ch; line-height:1.4; }
+.cell-short-id { font-family:ui-monospace,monospace; }
+.benchmark-reading { border-left:3px solid #71533d; padding:8px 16px; background:#fff; }
+@media(max-width:999px) { .replay-layout:has(.outcome-summary) .cell-inspector { max-height:none; } .outcome-summary .outcome-reading { max-width:none; text-align:left; padding:4px 0; } }
