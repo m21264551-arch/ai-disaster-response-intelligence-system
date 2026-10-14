@@ -254,7 +254,7 @@ for (const [width, height] of [
       .boundingBox();
     expect(action!.y + action!.height).toBeLessThan(height);
     await page.screenshot({
-      path: `../../../outputs/refined-bushfire-${width}.png`,
+      path: `../../../outputs/distinct-tested-bushfire-${width}.png`,
     });
     await page
       .getByRole("button", { name: "Show observations", exact: true })
@@ -266,10 +266,38 @@ for (const [width, height] of [
     expect(summary!.y).toBeLessThan(map!.y);
     if (width <= 850) expect(details!.y).toBeGreaterThan(map!.y + map!.height);
     await page.screenshot({
-      path: `../../../outputs/refined-bushfire-outcomes-${width}.png`,
+      path: `../../../outputs/distinct-tested-bushfire-outcomes-${width}.png`,
     });
     await page.getByRole("link", { name: "How to use", exact: true }).click();
     await page.screenshot({
-      path: `../../../outputs/refined-bushfire-guide-${width}.png`,
+      path: `../../../outputs/distinct-tested-bushfire-guide-${width}.png`,
     });
   });
+
+test('outcome count buttons filter both views and sections retain the map instance',async({page})=>{
+ await page.goto('/?source=portfolio');
+ const map=page.locator('.forecast-map');await map.waitFor();
+ const cutoff=await page.getByLabel('Historical cutoff').inputValue();
+ await map.evaluate(el=>el.setAttribute('data-instance-test','original'));
+ await page.getByRole('button',{name:'Show observations',exact:true}).click();
+ const summary=page.getByRole('region',{name:'Exact-cell outcomes'});await summary.waitFor();
+ const totals=await summary.textContent();
+ await summary.getByRole('button',{name:/Misses/}).click();
+ await expect(page.getByLabel('Show cells')).toHaveValue('miss');
+ const viewport=await map.getAttribute('data-viewport');
+ await page.getByRole('button',{name:'Table',exact:true}).click();
+ await page.getByRole('button',{name:'Results',exact:true}).click();
+ await page.getByRole('button',{name:'Data and method',exact:true}).click();
+ await page.getByRole('button',{name:'Replay',exact:true}).click();
+ await expect(page.getByLabel('Show cells')).toHaveValue('miss');
+ await page.getByRole('button',{name:'Map',exact:true}).click();
+ await expect(map).toHaveAttribute('data-instance-test','original');
+ await expect(map).toHaveAttribute('data-viewport',viewport!);
+ await expect(summary).toHaveText(totals!);
+ expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
+ await page.getByRole('button',{name:'Next cutoff',exact:true}).click();
+ await expect(summary).toHaveCount(0);
+ await expect(page.getByLabel('Show cells')).toHaveValue('all');
+ await page.getByRole('button',{name:'Previous cutoff',exact:true}).click();
+ await expect(page.getByLabel('Historical cutoff')).toHaveValue(cutoff);
+});

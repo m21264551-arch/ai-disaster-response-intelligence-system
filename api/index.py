@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 
@@ -23,12 +24,13 @@ STATIC_DIR = Path(__file__).resolve().parents[1] / "dashboard-static"
 @app.get("/{asset_path:path}", include_in_schema=False)
 def serve_dashboard(asset_path: str = "") -> FileResponse:
     requested = (STATIC_DIR / asset_path).resolve()
-    if requested.is_file() and requested.is_relative_to(STATIC_DIR):
-        response = FileResponse(requested)
-        if requested.parts[-2:-1] == ("assets",):
-            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-        return response
-
-    response = FileResponse(STATIC_DIR / "index.html")
-    response.headers["Cache-Control"] = "no-cache"
+    target = requested if requested.is_file() and requested.is_relative_to(STATIC_DIR) else STATIC_DIR / "index.html"
+    response = FileResponse(target)
+    if target.suffix == ".html":
+        # Deployment file mtimes can be normalized and HTML lengths can repeat.
+        # Validate the actual entrypoint on both direct and SPA fallback routes.
+        response.headers["ETag"] = f'"{hashlib.sha256(target.read_bytes()).hexdigest()}"'
+        response.headers["Cache-Control"] = "no-cache"
+    elif target.parts[-2:-1] == ("assets",):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
