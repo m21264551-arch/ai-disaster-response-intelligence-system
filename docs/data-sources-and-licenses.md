@@ -80,7 +80,7 @@ The weather feature join uses public Bureau of Meteorology daily evapotranspirat
 - Included derived artifact: `backend/app/data/bom_weather_observations_sample.csv`
 - Attribution: Australian Government Bureau of Meteorology
 
-The committed sample covers selected NSW, VIC, QLD, SA, and WA stations from November 2019 through January 2020. The public pipeline treats each daily record as available at 00:00 UTC two days after its date. Historical publication timestamps are unavailable, so this is an explicit conservative assumption. Missing measurements remain missing; the model does not substitute invented weather.
+The committed sample covers selected NSW, VIC, QLD, SA, and WA stations from November 2019 through January 2020. The public pipeline treats each daily record as available at 00:00 UTC two days after its date. Historical publication timestamps are unavailable, so this is an explicit conservative assumption. Missing measurements remain missing. The model does not substitute invented weather.
 
 Security note: the optional downloader uses BoM's public FTP table endpoint because a working HTTPS mirror was not available during this build. Treat fresh downloads as unauthenticated public-feed input: run them from a trusted network, review the resulting CSV diff before replacing the committed sample, and keep the committed sample for reproducible public demos.
 

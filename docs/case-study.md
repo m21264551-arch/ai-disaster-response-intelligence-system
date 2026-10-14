@@ -6,7 +6,7 @@ The spread heuristic ranked future hotspot cells better than the learned model a
 
 ## Reveal the errors
 
-Choose a historical cutoff and forecast horizon, then show the satellite observations. The map marks hits, misses and false alarms; the Table view exposes individual cells. Predictions select the highest-ranked 10% of candidates before any future detections are consulted.
+Choose a historical cutoff and forecast horizon, then show the satellite observations. The map marks hits, misses and false alarms. The Table view exposes individual cells. Predictions select the highest-ranked 10% of candidates before any future detections are consulted.
 
 ## Keep the map and benchmark together
 

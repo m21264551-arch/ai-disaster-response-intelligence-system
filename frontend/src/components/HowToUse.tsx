@@ -87,8 +87,7 @@ export default function HowToUse() {
             ))}
           </svg>
           <figcaption>
-            Actual cells at the 11 January 2020, 12:00 UTC cutoff, +24h. Shapes
-            shown separately; this is not a map.
+            Actual cells at the 11 January 2020, 12:00 UTC cutoff, +24h. The shapes are shown separately, not in their geographic positions.
           </figcaption>
         </figure>
         <div>
@@ -105,9 +104,7 @@ export default function HowToUse() {
             </li>
             <li>
               <strong>Show observations.</strong> The highest-scoring 10% of
-              candidate cells were selected before seeing the outcomes. Hits
-              were selected and observed; false alarms were selected without a
-              detection; misses were observed but not selected.
+              candidate cells were selected before seeing the outcomes. Hits were selected and observed. False alarms were selected without a detection. Misses were observed but not selected.
             </li>
             <li>
               <strong>Inspect a result.</strong> Filter to hits, misses or false
@@ -116,7 +113,7 @@ export default function HowToUse() {
             </li>
           </ol>
           <p>
-            Scores rank cells; they are not calibrated probabilities. The counts
+            Scores rank cells. They are not calibrated probabilities. The counts
             use exact-cell matching and do not change when you filter. Satellite
             coverage and detections are imperfect, and one historical event
             cannot establish performance across seasons.
