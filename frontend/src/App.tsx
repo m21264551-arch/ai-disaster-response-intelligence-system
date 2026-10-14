@@ -90,6 +90,17 @@ export default function App() {
     [filter, setFilter] = useState("all"),
     [view, setView] = useState("replay"),
     [surface, setSurface] = useState("map");
+  const [focusRequest, setFocusRequest] = useState<{cell: string; nonce: number} | null>(null);
+  const focusSequence = useRef(0);
+  function locateCell(id: string) {
+    setSelected(id); setSurface("map");
+    setFocusRequest({cell:id,nonce:++focusSequence.current});
+    requestAnimationFrame(()=>document.querySelector<HTMLElement>(".forecast-map")?.focus());
+  }
+  function inspectCell(id: string) {
+    setSelected(id);
+    requestAnimationFrame(()=>document.getElementById("inspecting-cell")?.focus());
+  }
   const revealSequence = useRef(0);
   const generation = useRef(0),
     revealController = useRef<AbortController | null>(null);
@@ -117,6 +128,7 @@ export default function App() {
     setFrame(null);
     setFrameError("");
     setSelected(null);
+    setFocusRequest(null);
     setTolerance(0);
     setFilter("all");
     if (study && key?.available)
@@ -319,7 +331,7 @@ export default function App() {
                   {currentFrame && (
                     <div className="reveal-action">
                       <span>
-                        Top 10% selected · {currentFrame.selectedCells.length}{" "}
+                        Forecast: top 10% · {currentFrame.selectedCells.length}{" "}
                         cells
                       </span>
                       <button
@@ -425,32 +437,13 @@ export default function App() {
                               Table
                             </button>
                           </div>
-                          <label>
+                          {!currentReveal && <label>
                             Show cells
-                            <select
-                              value={filter}
-                              onChange={(e) => changeFilter(e.target.value)}
-                            >
-                              <option value="all">
-                                {currentReveal
-                                  ? "All outcomes"
-                                  : "All candidates"}
-                              </option>
-                              {currentReveal ? (
-                                <>
-                                  <option value="hit">Hits</option>
-                                  <option value="miss">Misses</option>
-                                  <option value="false_alarm">
-                                    False alarms
-                                  </option>
-                                </>
-                              ) : (
-                                <option value="selected">
-                                  Selected predictions
-                                </option>
-                              )}
+                            <select value={filter} onChange={e=>changeFilter(e.target.value)}>
+                              <option value="all">All candidates</option>
+                              <option value="selected">Included in forecast</option>
                             </select>
-                          </label>
+                          </label>}
                         </div>
                         <div className="map-display" hidden={surface !== "map"}>
                           <ForecastMap
@@ -459,6 +452,7 @@ export default function App() {
                             selected={selected}
                             visibleIds={listed}
                             onSelect={setSelected}
+                            focusRequest={focusRequest}
                           />
                           <div className="legend">
                             {currentReveal ? (
@@ -470,7 +464,7 @@ export default function App() {
                             ) : (
                               <>
                                 <span>Light → dark: higher score</span>
-                                <span>Heavy border: selected top 10%</span>
+                                <span>Heavy border: included in forecast</span>
                                 <span>
                                   Maximum score{" "}
                                   {fixed(
@@ -501,10 +495,9 @@ export default function App() {
                               <table>
                                 <thead>
                                   <tr>
-                                    <th>H3 cell</th>
+                                    <th>Outcome</th>
                                     <th>Score at +{horizon}h</th>
-                                    <th>Selected?</th>
-                                    <th>Observed comparison</th>
+                                    <th>Cell</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -517,28 +510,9 @@ export default function App() {
                                         key={`${id}:${horizon}`}
                                         aria-selected={selected === id}
                                       >
-                                        <th scope="row">
-                                          <button
-                                            onClick={() => setSelected(id)}
-                                            aria-label={`Inspect cell ${id}`}
-                                          >
-                                            {id}
-                                          </button>
-                                        </th>
-                                        <td>
-                                          {c
-                                            ? `Score ${fixed(c.score)}`
-                                            : "Not scored"}
-                                        </td>
-                                        <td>{c?.selected ? "Yes" : "No"}</td>
-                                        <td>
-                                          {currentReveal
-                                            ? statuses
-                                                .get(id)
-                                                ?.replace("_", " ") ||
-                                              "No detection / not selected"
-                                            : "Not revealed"}
-                                        </td>
+                                        <th scope="row">{currentReveal ? outcomeNames[statuses.get(id) || ""] || "No detection" : c?.selected ? "In forecast" : "Not in forecast"}</th>
+                                        <td>{c ? `Score ${fixed(c.score)}` : "Not scored"}</td>
+                                        <td><button onClick={() => inspectCell(id)} aria-label={`Inspect cell ${id}`}>Details</button></td>
                                       </tr>
                                     );
                                   })}
@@ -548,10 +522,10 @@ export default function App() {
                           </section>
                         )}
                       </section>
-                      <div role="region" aria-label="Selected cell details" className={`cell-inspector ${surface === "table" ? "beside-table" : ""}`}>
+                      <div role="region" aria-label="Cell inspection" className={`cell-inspector ${surface === "table" ? "beside-table" : ""}`}>
                         {revealError && <p role="alert">{revealError}</p>}
                         <section className="cell-details" aria-live="polite">
-                          <h2>Selected cell</h2>
+                          <h2 id="inspecting-cell" tabIndex={-1}>Inspecting cell</h2>
                           {!selected ? (
                             <p>Select a cell on the map or in the table.</p>
                           ) : (
@@ -562,8 +536,8 @@ export default function App() {
                                       statuses.get(selected) || ""
                                     ] || "No observed detection"
                                   : cell?.selected
-                                    ? "Top 10% selected"
-                                    : "Outside top 10%"}
+                                    ? "Included in forecast"
+                                    : "Not included in forecast"}
                               </p>
                               <p className="cell-score">
                                 {cell
@@ -576,8 +550,8 @@ export default function App() {
                               {currentReveal && cell && (
                                 <p>
                                   {cell.selected
-                                    ? "Selected at the cutoff."
-                                    : "Not selected at the cutoff."}
+                                    ? "Included in the forecast at this cutoff."
+                                    : "Not included in the forecast at this cutoff."}
                                 </p>
                               )}
                               {!cell && (
@@ -587,6 +561,7 @@ export default function App() {
                                   score.
                                 </p>
                               )}
+                              <button className="locate-cell" onClick={()=>locateCell(selected)}>{surface === "map" ? "Zoom to cell" : "Show on map"}</button>
                               <details>
                                 <summary>Cell details</summary>
                                 <code>{selected}</code>
@@ -653,6 +628,7 @@ export default function App() {
             {view === "evaluation" && (
               <>
                 <h2>Evaluation results</h2>
+                <p className="evaluation-scope">All covered cutoffs · {horizon}-hour horizon · top 10% per cutoff</p>
                 <p>
                   January 10–16 was already used by an earlier benchmark. This
                   is a corrected reconstruction, not newly unseen evidence.
@@ -742,6 +718,14 @@ export default function App() {
                         Observed fraction
                       </text>
                     </svg>
+                    <details className="calibration-data"><summary>Calibration values</summary>
+                      <div className="table-wrap" role="region" aria-label="Calibration bins" tabIndex={0}>
+                        <table><thead><tr><th>Mean score</th><th>Observed fraction</th><th>Cell/windows</th></tr></thead>
+                          <tbody>{study.benchmarks[horizon].model.calibration.map((point,i)=><tr key={i}>
+                            <td>{fixed(point.meanScore)}</td><td>{percent(point.observedFraction)}</td><td>{point.n}</td>
+                          </tr>)}</tbody></table>
+                      </div>
+                    </details>
                   </section>
                   <section>
                     <h3>Missed hotspots</h3>

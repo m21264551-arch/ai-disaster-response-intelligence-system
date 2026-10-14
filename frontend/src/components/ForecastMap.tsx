@@ -9,21 +9,32 @@ export function ForecastMap({
   selected,
   visibleIds,
   onSelect,
+  focusRequest,
 }: {
   frame: Frame;
   reveal: Reveal | null;
   selected: string | null;
   visibleIds: string[];
   onSelect: (cell: string) => void;
+  focusRequest: {cell:string;nonce:number} | null;
 }) {
   const div = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
   const callback = useRef(onSelect);
   const [tilesMissing, setTilesMissing] = useState(false);
+  const [small, setSmall] = useState(()=>window.matchMedia("(max-width:999px)").matches || L.Browser.mobile);
+  const [moving, setMoving] = useState(false);
+  useEffect(()=>{
+    const query=window.matchMedia("(max-width:999px)");
+    const resize=()=>setSmall(query.matches || L.Browser.mobile);
+    query.addEventListener("change",resize);
+    return ()=>query.removeEventListener("change",resize);
+  },[]);
   const fitKey = useRef("");
   const needsFit = useRef(true);
   const bounds = useRef<L.LatLngBounds | null>(null);
+  const focusedRequest = useRef<number | null>(null);
   callback.current = onSelect;
   const fitEvent = () => {
     if (
@@ -48,7 +59,8 @@ export function ForecastMap({
       scrollWheelZoom: false,
       zoomSnap: 0.25,
       zoomDelta: 0.5,
-      dragging: !L.Browser.mobile,
+      dragging: !window.matchMedia("(max-width:999px)").matches && !L.Browser.mobile,
+      touchZoom: !L.Browser.mobile,
     }).setView([-34.8, 150.2], 7);
     map.current = instance;
     const recordViewport = () => {
@@ -115,8 +127,8 @@ export function ForecastMap({
       const polygon = L.geoJSON(geometry, {
         style: {
           color: id === selected ? "#142d40" : color,
-          weight: id === selected ? 4 : reveal ? 2 : cell?.selected ? 2 : 0.3,
-          opacity: reveal || cell?.selected || id === selected ? 1 : 0.3,
+          weight: id === selected ? 4 : reveal ? 2 : cell?.selected ? 2 : 0.6,
+          opacity: reveal || cell?.selected || id === selected ? 1 : 0.5,
           fillColor: color,
           fillOpacity: reveal ? 0.7 : 0.58,
           dashArray:
@@ -132,6 +144,7 @@ export function ForecastMap({
         `${status ? labels[status] + " · " : ""}${cell ? `Score ${cell.score.toFixed(3)}${cell.selected ? " · top 10%" : ""}` : "Not scored · outside candidates"}`,
       );
       polygon.on("click", () => callback.current(id));
+      if(id===selected) L.geoJSON(geometry,{interactive:false,style:{color:"#fff",weight:8,opacity:1,fillOpacity:0}}).addTo(layer.current);
       polygon.addTo(layer.current);
     }
     const points = [...items.values()].flatMap((g) =>
@@ -144,12 +157,31 @@ export function ForecastMap({
     }
     if (needsFit.current) fitEvent();
   }, [frame, reveal, selected, visibleIds]);
+  useEffect(()=>{
+    if(!map.current) return;
+    if(!small || moving) {map.current.dragging.enable();map.current.touchZoom.enable();}
+    else {map.current.dragging.disable();map.current.touchZoom.disable();}
+    if(div.current) div.current.dataset.movement=(!small || moving)?"enabled":"page-scroll";
+  },[small,moving]);
+  useEffect(()=>{
+    if(!focusRequest || !map.current || focusedRequest.current === focusRequest.nonce) return;
+    const geometry=frame.cells.find(c=>c.h3_id===focusRequest.cell)?.geometry || reveal?.comparisonCells.find(c=>c.h3_id===focusRequest.cell)?.geometry;
+    if(!geometry) return;
+    const cellBounds=L.latLngBounds(geometry.coordinates[0].map(p=>L.latLng(p[1],p[0])));
+    map.current.invalidateSize({pan:false});
+    map.current.fitBounds(cellBounds,{padding:[55,55],maxZoom:10,animate:false});
+    focusedRequest.current=focusRequest.nonce;
+  },[focusRequest,frame,reveal]);
   return (
-    <div className="map-wrap">
+    <div className="map-wrap" onKeyDown={event=>{if(event.key==="Escape") setMoving(false);}}>
+
       <button className="fit-event" onClick={fitEvent}>
         Fit event
       </button>
+      {small && <button className="move-map" aria-pressed={moving} onClick={()=>setMoving(value=>!value)}>{moving ? "Done moving" : "Move map"}</button>}
+      {small && moving && <p className="map-mode-note" role="status">Drag or pinch to move. Choose Done moving to scroll the page.</p>}
       <div
+        tabIndex={0}
         ref={div}
         className="forecast-map"
         role="region"
