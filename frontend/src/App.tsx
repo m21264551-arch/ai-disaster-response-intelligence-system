@@ -232,7 +232,27 @@ export default function App() {
           NSW Hotspot Replay
         </a>
         <span className="mode">Historical replay · uncalibrated scores</span>
-        <nav aria-label="Project links">
+            <nav className="views" aria-label="Study views">
+              <button
+                disabled={!study} aria-pressed={view === "replay"}
+                onClick={() => setView("replay")}
+              >
+                Replay
+              </button>
+              <button
+                disabled={!study} aria-pressed={view === "evaluation"}
+                onClick={() => setView("evaluation")}
+              >
+                Results
+              </button>
+              <button
+                disabled={!study} aria-pressed={view === "method"}
+                onClick={() => setView("method")}
+              >
+                Data and method
+              </button>
+            </nav>
+        <nav className="project-links" aria-label="Project links">
           <a href="#how-to-use">How to use</a>
           <a href="https://github.com/m21264551-arch/ai-disaster-response-intelligence-system">
             Code ↗
@@ -241,12 +261,12 @@ export default function App() {
         </nav>
       </header>
       <main id="tool" tabIndex={-1}>
-        <h1>
+        <h1 className="sr-only">
           Compare hotspot forecasts with satellite observations from January
           2020.
         </h1>
         {loadError ? (
-          <section role="alert">
+          <section className="workspace-message" role="alert">
             <h2>Replay unavailable</h2>
             <p>{loadError}</p>
             <button onClick={() => setReload((v) => v + 1)}>
@@ -254,33 +274,12 @@ export default function App() {
             </button>
           </section>
         ) : !study ? (
-          <p role="status">Loading replay…</p>
+          <p className="workspace-message" role="status">Loading replay…</p>
         ) : (
           <>
-            <nav className="views" aria-label="Study views">
-              <button
-                aria-pressed={view === "replay"}
-                onClick={() => setView("replay")}
-              >
-                Replay
-              </button>
-              <button
-                aria-pressed={view === "evaluation"}
-                onClick={() => setView("evaluation")}
-              >
-                Results
-              </button>
-              <button
-                aria-pressed={view === "method"}
-                onClick={() => setView("method")}
-              >
-                Data and method
-              </button>
-            </nav>
-            {view === "replay" && (
-              <>
+            <section className="replay-workspace" hidden={view !== "replay"} aria-label="Historical replay workspace">
                 <div className="timeline">
-                  <label>
+                  <div className="cutoff-control"><label>
                     Historical cutoff
                     <select
                       value={timeIndex}
@@ -293,6 +292,7 @@ export default function App() {
                       ))}
                     </select>
                   </label>
+                    <div className="cutoff-arrows"><button aria-label="Previous cutoff" disabled={timeIndex===0} onClick={()=>setTimeIndex(i=>Math.max(0,i-1))}>←</button><button aria-label="Next cutoff" disabled={timeIndex===times.length-1} onClick={()=>setTimeIndex(i=>Math.min(times.length-1,i+1))}>→</button></div></div>
                   <label className="timeline-range">
                     Move through the event
                     <input
@@ -344,7 +344,7 @@ export default function App() {
                   )}
                 </div>
                 {!key?.available ? (
-                  <section className="unavailable" role="status">
+                  <section className="unavailable workspace-message" role="status">
                     <h2>Observation coverage unavailable</h2>
                     <p>
                       {key?.reason || "This cutoff/horizon is unavailable."}
@@ -359,7 +359,7 @@ export default function App() {
                     </button>
                   </section>
                 ) : frameError ? (
-                  <section role="alert">
+                  <section className="workspace-message" role="alert">
                     <h2>Frame unavailable</h2>
                     <p>{frameError}</p>
                     <button onClick={() => setReload((v) => v + 1)}>
@@ -367,7 +367,7 @@ export default function App() {
                     </button>
                   </section>
                 ) : !currentFrame ? (
-                  <p role="status">Loading historical forecast…</p>
+                  <p className="workspace-message" role="status">Loading historical forecast…</p>
                 ) : (
                   <>
                     <div className="replay-layout">
@@ -379,7 +379,7 @@ export default function App() {
                         >
                           {(["hit", "false_alarm", "miss"] as const).map(
                             (status) => (
-                              <div key={status} className={status}>
+                              <button key={status} className={status} aria-pressed={filter === status} onClick={()=>changeFilter(status)}>
                                 <strong>{outcomeCounts[status]}</strong>
                                 <span>
                                   {status === "hit"
@@ -388,14 +388,10 @@ export default function App() {
                                       ? "Misses"
                                       : "False alarms"}
                                 </span>
-                              </div>
+                              </button>
                             ),
                           )}
-                          <p>
-                            Exact cells · all outcomes
-                            <br />
-                            Filters change the view only.
-                          </p>
+                          <button className="all-outcomes" aria-pressed={filter === "all"} onClick={()=>changeFilter("all")}>All outcomes</button><p>Exact-cell counts · filters change the view only</p>
                         </section>
                       )}
                       <section className="map-section">
@@ -456,7 +452,7 @@ export default function App() {
                             </select>
                           </label>
                         </div>
-                        <div hidden={surface !== "map"}>
+                        <div className="map-display" hidden={surface !== "map"}>
                           <ForecastMap
                             frame={currentFrame}
                             reveal={currentReveal}
@@ -552,10 +548,10 @@ export default function App() {
                           </section>
                         )}
                       </section>
-                      <aside>
+                      <div role="region" aria-label="Selected cell details" className={`cell-inspector ${surface === "table" ? "beside-table" : ""}`}>
                         {revealError && <p role="alert">{revealError}</p>}
                         <section className="cell-details" aria-live="polite">
-                          <h3>Selected cell</h3>
+                          <h2>Selected cell</h2>
                           {!selected ? (
                             <p>Select a cell on the map or in the table.</p>
                           ) : (
@@ -649,12 +645,11 @@ export default function App() {
                             </p>
                           </details>
                         )}
-                      </aside>
+                      </div>
                     </div>
                   </>
                 )}
-              </>
-            )}
+            </section>
             {view === "evaluation" && (
               <>
                 <h2>Evaluation results</h2>

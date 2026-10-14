@@ -48,6 +48,7 @@ export function ForecastMap({
       scrollWheelZoom: false,
       zoomSnap: 0.25,
       zoomDelta: 0.5,
+      dragging: !L.Browser.mobile,
     }).setView([-34.8, 150.2], 7);
     map.current = instance;
     const recordViewport = () => {
@@ -67,8 +68,10 @@ export function ForecastMap({
     layer.current = L.layerGroup().addTo(instance);
     const observer = new ResizeObserver(() => {
       if (!div.current?.clientWidth || !div.current?.clientHeight) return;
+      const center = instance.getCenter(), zoom = instance.getZoom();
       instance.invalidateSize({ pan: false });
       if (needsFit.current) fitEvent();
+      else instance.setView(center, zoom, { animate: false, reset: true });
     });
     observer.observe(div.current);
     return () => {
@@ -98,7 +101,7 @@ export function ForecastMap({
           : status === "miss"
             ? "#96334f"
             : "#a65912"
-        : `hsl(24, ${35 + (cell?.score || 0) * 55}%, ${82 - (cell?.score || 0) * 50}%)`;
+        : `hsl(27, ${20 + (cell?.score || 0) * 30}%, ${88 - (cell?.score || 0) * 48}%)`;
       const polygon = L.geoJSON(geometry, {
         style: {
           color: id === selected ? "#142d40" : color,
