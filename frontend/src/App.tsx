@@ -612,7 +612,7 @@ export default function App() {
                                     </dl>
                                     <p className="small">
                                       {cell.weatherMissing
-                                        ? "Weather has missing features; no synthetic values were inserted."
+                                        ? "Some weather measurements are missing."
                                         : `Weather available under the study's lag rule: ${cell.weatherAvailableAt ? timestamp(cell.weatherAvailableAt) : "unavailable"}.`}
                                     </p>
                                   </>
@@ -649,9 +649,7 @@ export default function App() {
                             </dl>
                             <p className="small">
                               The map, table and counts above always use exact
-                              cells. One-ring matching can reuse observations;
-                              its precision and recall are a secondary
-                              comparison.
+                              cells. One-ring matching can reuse observations. Its precision and recall are a secondary comparison.
                             </p>
                           </details>
                         )}
@@ -682,14 +680,13 @@ export default function App() {
                   </select>
                 </label>
                 <ScoreTable scores={study.benchmarks[horizon]} />
-                {benchmark && <p className="benchmark-reading">At {horizon} hours, the model's average precision is {fixed(benchmark.model.averagePrecision)}, compared with {fixed(benchmark.spread.averagePrecision)} for the spread heuristic. {benchmark.model.averagePrecision! < benchmark.spread.averagePrecision! ? "The simpler heuristic ranks observed hotspots better on this benchmark." : "The model ranks observed hotspots better on this benchmark."} Brier score measures probability error (model {fixed(benchmark.model.brier)}, spread {fixed(benchmark.spread.brier)}; lower is better). This existing event benchmark does not establish performance on a new fire event.</p>}
+                {benchmark && <p className="benchmark-reading">At {horizon} hours, the model's average precision is {fixed(benchmark.model.averagePrecision)}, compared with {fixed(benchmark.spread.averagePrecision)} for the spread heuristic. {benchmark.model.averagePrecision! < benchmark.spread.averagePrecision! ? "The simpler heuristic ranks observed hotspots better on this benchmark." : "The model ranks observed hotspots better on this benchmark."} Brier score measures probability error (model {fixed(benchmark.model.brier)}, spread {fixed(benchmark.spread.brier)}, lower is better). This existing event benchmark does not establish performance on a new fire event.</p>}
                 <p className="small">
                   AP and Brier use all candidate cells. Recall includes observed
                   cells outside the candidate set. Precision/recall use a
                   separate top-10% selection for each method at each cutoff.
                   Overlapping horizons repeat observations and are not
-                  independent trials. Persistence is 1 for a cell with a recent
-                  detection; prevalence is learned only from eligible training
+                  independent trials. Persistence is 1 for a cell with a recent detection. Prevalence is learned only from eligible training
                   labels.
                 </p>
                 <div className="calibration-section">
@@ -771,9 +768,7 @@ export default function App() {
                     </p>
                     <p>
                       Scores have not been calibrated into reliable event
-                      probabilities. The plot measures agreement on the reserved
-                      event; it does not apply a correction learned from those
-                      outcomes.
+                      probabilities. The plot measures agreement on the reserved event. It does not recalibrate the scores using those outcomes.
                     </p>
                     <p>
                       The baseline comparisons are useful even when the trained
@@ -849,19 +844,14 @@ export default function App() {
                   and replay: ring 3 around recent hotspot cells, clipped by the
                   fixed NSW bounds and land mask. All candidates are scored. The
                   highest-ranked 10% (rounded up) are selected before outcomes
-                  are consulted. Ties resolve by H3 ID. Exact matching is
-                  primary; neighbouring-cell tolerance is a separately labelled
-                  secondary comparison.
+                  are consulted. Ties resolve by H3 ID. Exact matching is the default. Neighbouring-cell tolerance is a separate comparison.
                 </p>
                 <h3>Reproduce</h3>
                 <pre>
                   make install{"\n"}make replay{"\n"}make test{"\n"}make build
                 </pre>
                 <p>
-                  Acquisition is a separate optional command. The public API
-                  reads saved frames and verifies model/data identity; it never
-                  trains, performs expensive inference or substitutes a demo
-                  scorer.
+                  Acquisition is a separate optional command. The API serves saved frames and checks that their model and dataset match.
                 </p>
                 <h3>Limitations</h3>
                 <ul>

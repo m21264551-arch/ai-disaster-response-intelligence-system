@@ -46,7 +46,7 @@ export function MetricsStrip({ metrics, sectionId, active = false }: MetricsStri
 
 function metricHelp(name: string): string {
   if (name === "PR-AUC") {
-    return "Precision-recall area under curve; useful when future fire cells are rare compared with non-fire cells.";
+    return "Precision-recall area under the curve. Useful when future fire cells are rare compared with non-fire cells.";
   }
   if (name === "Recall@Top-10%") {
     return "Share of true future hotspots captured in the highest-risk decile of scored cells.";

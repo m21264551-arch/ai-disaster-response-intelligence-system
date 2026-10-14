@@ -186,7 +186,7 @@ export function ForecastMap({
         ref={div}
         className="forecast-map"
         role="region"
-        aria-label="Historical forecast map; every cell can also be inspected in the Table view"
+        aria-label="Historical forecast map. Every cell can also be inspected in the Table view"
       />
       {tilesMissing && (
         <p className="tile-note">

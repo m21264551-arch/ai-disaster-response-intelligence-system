@@ -140,7 +140,7 @@ function metricHelp(name: string): string {
     return "Held-out hotspots captured in the model's highest-risk scored cells.";
   }
   if (name === "Brier Score") {
-    return "Held-out probability calibration error; lower is better.";
+    return "Held-out probability calibration error. Lower is better.";
   }
   return "Held-out metric compared with the baseline forecast.";
 }
